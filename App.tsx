@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity, TextInput, Platform, Alert } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity, TextInput, Platform, Alert, BackHandler } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,79 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, loginStyles } from './assets/styles';
+
+const styles = StyleSheet.create({
+  sidebarContainer: {
+    flex: 1,
+    backgroundColor: '#2C3E50',
+  },
+  webView: {
+    flex: 1,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: '100%',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    zIndex: 1000,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  errorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    zIndex: 1000,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  errorText: {
+    color: colors.secondary,
+    fontSize: 18,
+    marginBottom: 20
+  },
+  retryButton: {
+    backgroundColor: colors.secondary,
+    padding: 10,
+    borderRadius: 5
+  },
+  retryText: {
+    color: colors.primary,
+    fontSize: 16
+  },
+  formModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'white',
+    zIndex: 1000,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 10,
+    zIndex: 1001,
+  },
+  closeText: {
+    fontSize: 24,
+    color: '#666',
+  },
+});
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +89,8 @@ export default function App() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
-  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [currentFormUrl, setCurrentFormUrl] = useState('');
   const webViewRef = useRef(null);
 
   useEffect(() => {
@@ -62,9 +136,18 @@ export default function App() {
       return;
     }
     setIsLoading(true);
-    setIsLoggedIn(true);
 
-    // Show save credentials prompt if not remembered
+    // Create the login form data
+    const formData = {
+      username: username,
+      password: password,
+    };
+
+    // Show WebView after setting credentials
+    setIsLoggedIn(true);
+    setShowWebView(true);
+
+    // Handle remember me after successful login
     if (!rememberMe) {
       setTimeout(() => {
         Alert.alert(
@@ -85,20 +168,42 @@ export default function App() {
             }
           ]
         );
-      }, 1500); // Show after a brief delay
+      }, 1500);
     }
   };
 
-  const handleError = () => {
+  const handleWebViewNavigationStateChange = (newNavState) => {
+    const { url } = newNavState;
+
+    // Check if this is a form URL
+    if (url && (
+      url.includes('AttendanceRequest.aspx') ||
+      url.includes('pgpreapproval.aspx') ||
+      url.includes('pgleaveapplicationnew.aspx') ||
+      url.includes('HourbasedPermission.aspx')
+    )) {
+      setCurrentFormUrl(url);
+      setIsFormVisible(true);
+      return false; // Prevent default navigation
+    }
+
+    // Allow other URLs to load normally
+    return true;
+  };
+
+  const handleError = (syntheticEvent) => {
+    const { nativeEvent } = syntheticEvent;
+    console.warn('WebView error: ', nativeEvent);
     setHasError(true);
     setIsLoading(false);
-    setIsLoggedIn(false);
-    setShowWebView(false);
   };
 
   const retry = () => {
     setHasError(false);
     setIsLoading(true);
+    if (webViewRef.current) {
+      webViewRef.current.reload();
+    }
   };
 
   useEffect(() => {
@@ -108,6 +213,25 @@ export default function App() {
       clearCredentials();
     }
   }, [rememberMe]);
+
+  useEffect(() => {
+    const backAction = () => {
+      if (isFormVisible) {
+        setIsFormVisible(false);
+        setCurrentFormUrl('');
+        webViewRef.current?.goBack();
+        return true; // Prevents default back action
+      }
+      return false; // Allows default back action
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove(); // Cleanup on unmount
+  }, [isFormVisible]);
 
   const customStyles = `
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
@@ -400,6 +524,424 @@ export default function App() {
       font-weight: 600 !important;
       line-height: 1.5 !important;
     }
+
+    /* Quick action buttons for Leave & Attendance */
+    .action-buttons-container {
+      display: flex !important;
+      gap: 16px !important;
+      margin: 20px !important;
+      flex-wrap: wrap !important;
+      width: calc(100% - 40px) !important;
+    }
+
+    .sidebar-action-button {
+      flex: 1 !important;
+      min-width: 150px !important;
+      padding: 16px !important;
+      border-radius: 12px !important;
+      background: linear-gradient(135deg, #2c5282, #2b6cb0) !important;
+      color: white !important;
+      font-weight: 500 !important;
+      font-size: 15px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      cursor: pointer !important;
+      transition: all 0.3s ease !important;
+      border: none !important;
+      box-shadow: 0 4px 6px rgba(44,82,130,0.2) !important;
+      text-decoration: none !important;
+    }
+
+    .sidebar-action-button:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 6px 12px rgba(44, 82, 130, 0.3) !important;
+    }
+
+    .sidebar-action-button:active {
+      transform: scale(0.98) !important;
+    }
+
+    .sidebar-action-button i {
+      font-size: 20px !important;
+    }
+  `;
+
+  const injectedJavaScript = `
+    (function() {
+      function initializePage() {
+        // Add Font Awesome if not already added
+        if (!document.querySelector('link[href*="font-awesome"]')) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+          document.head.appendChild(link);
+        }
+
+        function transformLeaveAttendancePage() {
+          console.log('Checking page...');
+          
+          // Find the sidebar menu items - using the correct selectors from the ASP.NET page
+          const requisitionsMenu = document.querySelector('#ctl00_requisitions .nav.child_menu');
+          const reportsMenu = document.querySelector('#ctl00_Reports .nav.child_menu');
+          
+          if (!requisitionsMenu && !reportsMenu) {
+            console.log('Menus not found, retrying...');
+            setTimeout(transformLeaveAttendancePage, 500);
+            return;
+          }
+
+          // Create and insert header first
+          const mainContent = document.querySelector('.right_col');
+          if (mainContent) {
+            // Remove existing header if any
+            const existingHeader = document.querySelector('.custom-header');
+            if (existingHeader) {
+              existingHeader.remove();
+            }
+
+            // Create new header
+            const header = document.createElement('div');
+            header.className = 'custom-header';
+            
+            // Get username from the page
+            const usernameElement = document.querySelector('.profile_info span');
+            const username = usernameElement ? usernameElement.textContent.trim() : 'Welcome';
+            
+            header.innerHTML = \`
+              <div class="header-content">
+                <div class="header-title">
+                  <i class="fa fa-calendar-check-o header-icon"></i>
+                  Leave & Attendance
+                </div>
+              </div>
+            \`;
+
+            // Insert header at the top
+            mainContent.insertBefore(header, mainContent.firstChild);
+          }
+
+          // Add styles with higher z-index and !important rules
+          const headerStyles = document.createElement('style');
+          headerStyles.textContent = \`
+            .custom-header {
+              background: linear-gradient(135deg, #ea580c, #fb923c) !important;
+              padding: 15px !important;
+              margin: -10px -15px 20px -15px !important;
+              color: white !important;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+              position: relative !important;
+              overflow: hidden !important;
+              z-index: 1000 !important;
+              display: block !important;
+              width: calc(100% + 30px) !important;
+            }
+
+            .custom-header::before {
+              content: '' !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%) !important;
+              pointer-events: none !important;
+            }
+
+            .header-content {
+              position: relative !important;
+              z-index: 1001 !important;
+              display: flex !important;
+              align-items: center !important;
+              padding-left: 15px !important;
+            }
+
+            .header-title {
+              font-size: 24px !important;
+              font-weight: 600 !important;
+              color: white !important;
+              display: flex !important;
+              align-items: center !important;
+              gap: 10px !important;
+            }
+
+            .header-icon {
+              font-size: 20px !important;
+            }
+
+            .right_col {
+              padding-top: 0 !important;
+              margin-top: 0 !important;
+            }
+          \`;
+          document.head.appendChild(headerStyles);
+
+          // Rest of your existing styles
+          const styleElement = document.createElement('style');
+          styleElement.textContent = \`
+            body.nav-md .container.body .right_col {
+              margin: 0 !important;
+              padding: 0 !important;
+              min-height: 100vh !important;
+              max-height: 100vh !important;
+              overflow-y: auto !important;
+              position: fixed !important;
+              width: 100% !important;
+              top: 0 !important;
+              left: 0 !important;
+            }
+            .nav_menu, .top_nav {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              height: 0 !important;
+              min-height: 0 !important;
+              overflow: hidden !important;
+              opacity: 0 !important;
+              z-index: -1 !important;
+              background: white !important;
+              border: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .right_col {
+              background: white !important;
+              margin-top: 0 !important;
+              padding-top: 10px !important;
+            }
+            .page-title, .title_left h3 {
+              display: none !important;
+            }
+            html, body {
+              touch-action: none !important;
+              -ms-touch-action: none !important;
+              user-zoom: fixed !important;
+              -ms-user-zoom: fixed !important;
+              -webkit-user-zoom: fixed !important;
+              zoom: 100% !important;
+              max-width: 100% !important;
+              overflow-x: hidden !important;
+            }
+            footer, .footer {
+              display: none !important;
+            }
+            .container.body {
+              height: 100vh !important;
+              overflow: hidden !important;
+            }
+            .leave-action-buttons {
+              margin-bottom: 20px !important;
+              position: relative !important;
+              z-index: 2 !important;
+            }
+            /* Hide the blue header bar */
+            .x_panel, .x_title, .x_content {
+              display: none !important;
+            }
+            /* Create a white overlay below buttons */
+            .leave-action-buttons::after {
+              content: '';
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              background: white !important;
+              z-index: 1 !important;
+            }
+            /* Ensure buttons stay above the overlay */
+            .leave-action-tile {
+              position: relative !important;
+              z-index: 3 !important;
+            }
+          \`;
+          document.head.appendChild(styleElement);
+
+          // Create container for buttons
+          let buttonContainer = document.querySelector('.leave-action-buttons');
+          if (!buttonContainer) {
+            buttonContainer = document.createElement('div');
+            buttonContainer.className = 'leave-action-buttons';
+            buttonContainer.style.cssText = \`
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 12px;
+              padding: 12px;
+              margin: 15px auto;
+              max-width: 800px;
+              width: calc(100% - 24px);
+              background: #f8fafc;
+              border-radius: 12px;
+            \`;
+
+            // Insert after the page title
+            const titleArea = document.querySelector('.page-title');
+            if (titleArea) {
+              titleArea.parentNode.insertBefore(buttonContainer, titleArea.nextSibling);
+            }
+          }
+
+          // Clear existing buttons
+          buttonContainer.innerHTML = '';
+
+          // Function to create button
+          function createButton(link, type) {
+            const button = document.createElement('div');
+            button.className = 'leave-action-tile';
+            
+            // Get href and text
+            const href = link.getAttribute('href');
+            const text = link.textContent.trim();
+            
+            // Determine icon based on text
+            let iconClass = 'fa-solid fa-calendar-check'; // default icon
+
+            // Assign specific icons based on link text
+            if (text.toLowerCase().includes('attendance')) {
+              iconClass = 'fa-solid fa-clock';
+            } else if (text.toLowerCase().includes('c-off')) {
+              iconClass = 'fa-solid fa-calendar-plus';
+            } else if (text.toLowerCase().includes('leave')) {
+              iconClass = 'fa-solid fa-calendar-minus';
+            } else if (text.toLowerCase().includes('report')) {
+              iconClass = 'fa-solid fa-chart-column';
+            } else if (text.toLowerCase().includes('time card')) {
+              iconClass = 'fa-solid fa-id-card';
+            }
+
+            button.innerHTML = \`
+              <div class="icon-wrapper">
+                <i class="\${iconClass}"></i>
+              </div>
+              <div class="title-wrapper">\${text}</div>
+            \`;
+
+            // Style the button
+            button.style.cssText = \`
+              position: relative;
+              aspect-ratio: 1.2;
+              border-radius: 16px;
+              padding: 12px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              background: linear-gradient(135deg, #ea580c, #fb923c);
+              color: white;
+              font-size: 13px;
+              font-weight: 500;
+              text-align: center;
+              box-shadow: 0 4px 0 #c2410c,
+                         0 8px 12px rgba(0, 0, 0, 0.1);
+              transform: translateY(-2px);
+              transition: all 0.2s;
+              cursor: pointer;
+              -webkit-tap-highlight-color: transparent;
+            \`;
+
+            // Style icon wrapper
+            const iconWrapper = button.querySelector('.icon-wrapper');
+            if (iconWrapper) {
+              iconWrapper.style.cssText = \`
+                width: 36px;
+                height: 36px;
+                margin-bottom: 8px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+              \`;
+            }
+
+            // Style title wrapper
+            const titleWrapper = button.querySelector('.title-wrapper');
+            if (titleWrapper) {
+              titleWrapper.style.cssText = \`
+                font-size: 12px;
+                line-height: 1.2;
+                margin-top: 4px;
+                max-width: 100%;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+              \`;
+            }
+
+            // Handle click
+            button.addEventListener('click', (e) => {
+              e.preventDefault();
+              if (href && href !== '#') {
+                if (href.includes('.aspx')) {
+                  window.location.href = href;
+                } else {
+                  // Handle ASP.NET postback
+                  __doPostBack(href.replace('javascript:__doPostBack(\\'', '').replace('\\',\\'\\')', ''), '');
+                }
+              }
+            });
+
+            // Add press effect
+            button.addEventListener('mousedown', () => {
+              button.style.transform = 'translateY(0)';
+              button.style.boxShadow = '0 2px 0 #c2410c, 0 4px 6px rgba(0, 0, 0, 0.1)';
+            });
+
+            button.addEventListener('mouseup', () => {
+              button.style.transform = 'translateY(-2px)';
+              button.style.boxShadow = '0 4px 0 #c2410c, 0 8px 12px rgba(0, 0, 0, 0.1)';
+            });
+
+            return button;
+          }
+
+          // Add requisition buttons
+          if (requisitionsMenu) {
+            const links = requisitionsMenu.querySelectorAll('a');
+            links.forEach(link => {
+              buttonContainer.appendChild(createButton(link, 'requisition'));
+            });
+          }
+
+          // Add report buttons
+          if (reportsMenu) {
+            const links = reportsMenu.querySelectorAll('a');
+            links.forEach(link => {
+              buttonContainer.appendChild(createButton(link, 'report'));
+            });
+          }
+
+          // Hide original sidebar on mobile
+          const sidebar = document.querySelector('.left_col');
+          if (sidebar && window.innerWidth <= 768) {
+            sidebar.style.display = 'none';
+          }
+        }
+
+        // Initial transform
+        transformLeaveAttendancePage();
+
+        // Watch for URL changes
+        let lastUrl = location.href;
+        new MutationObserver(() => {
+          const url = location.href;
+          if (url !== lastUrl) {
+            lastUrl = url;
+            transformLeaveAttendancePage();
+          }
+        }).observe(document, {subtree: true, childList: true});
+      }
+
+      // Initialize when ready
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initializePage();
+      } else {
+        document.addEventListener('DOMContentLoaded', initializePage);
+      }
+    })();
+    true;
   `;
 
   const injectedJavaScriptBeforeContentLoaded = `
@@ -409,16 +951,177 @@ export default function App() {
         document.getElementById('txtPassword').value = '${password}';
         document.getElementById('btnLogin').click();
       } else {
+        // Function to add buttons
+        function addButtons() {
+          // Only proceed if we're on the leave-attendance page
+          if (window.location.href.toLowerCase().includes('leave')) {
+            // Find all sidebar links
+            const sidebarLinks = document.querySelectorAll('.nav.side-menu > li > a');
+            
+            // Create container for buttons
+            let buttonContainer = document.querySelector('.leave-action-buttons');
+            if (!buttonContainer) {
+              buttonContainer = document.createElement('div');
+              buttonContainer.className = 'leave-action-buttons';
+              buttonContainer.style.cssText = \`
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 12px;
+                padding: 12px;
+                margin-top: 20px;
+                width: 100%;
+              \`;
+
+              // Insert container at the top of the content
+              const contentArea = document.querySelector('form') || document.body;
+              contentArea.insertBefore(buttonContainer, contentArea.firstChild);
+            }
+
+            // Create buttons from sidebar links
+            sidebarLinks.forEach(link => {
+              // Skip if button already exists
+              const existingButton = buttonContainer.querySelector(\`[data-href="\${link.href}"]\`);
+              if (existingButton) return;
+
+              const button = document.createElement('div');
+              button.className = 'leave-action-tile';
+              button.dataset.href = link.href;
+
+              // Clean up the link text and get icon
+              const titleText = link.textContent.trim().toLowerCase();
+              let iconClass = 'fa-solid fa-calendar-check'; // default icon
+
+              // Assign specific icons based on link text
+              if (titleText.includes('requisition')) {
+                iconClass = 'fa-solid fa-file-circle-plus';
+              } else if (titleText.includes('report')) {
+                iconClass = 'fa-solid fa-chart-column';
+              } else if (titleText.includes('approval')) {
+                iconClass = 'fa-solid fa-clipboard-check';
+              } else if (titleText.includes('cancel')) {
+                iconClass = 'fa-solid fa-calendar-xmark';
+              } else if (titleText.includes('leave')) {
+                iconClass = 'fa-solid fa-calendar-minus';
+              } else if (titleText.includes('time card')) {
+                iconClass = 'fa-solid fa-id-card';
+              }
+
+              button.innerHTML = \`
+                <div class="icon-wrapper">
+                  <i class="\${iconClass}"></i>
+                </div>
+                <div class="title-wrapper">\${link.textContent.trim()}</div>
+              \`;
+
+              // Style the button similar to home page tiles
+              button.style.cssText = \`
+                position: relative;
+                aspect-ratio: 1.2;
+                border-radius: 16px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 1.4;
+                text-align: center;
+                color: white;
+                background: linear-gradient(135deg, #ea580c, #fb923c);
+                box-shadow: 0 4px 0 #c2410c,
+                           0 8px 12px rgba(0, 0, 0, 0.1);
+                transform: translateY(-2px);
+                transition: all 0.2s;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+              \`;
+
+              // Style icon wrapper
+              const iconWrapper = button.querySelector('.icon-wrapper');
+              if (iconWrapper) {
+                iconWrapper.style.cssText = \`
+                  width: 36px;
+                  height: 36px;
+                  margin-bottom: 8px;
+                  border-radius: 50%;
+                  background: rgba(255, 255, 255, 0.2);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 18px;
+                \`;
+              }
+
+              // Style title wrapper
+              const titleWrapper = button.querySelector('.title-wrapper');
+              if (titleWrapper) {
+                titleWrapper.style.cssText = \`
+                  font-size: 12px;
+                  line-height: 1.2;
+                  margin-top: 4px;
+                  max-width: 100%;
+                  overflow-wrap: break-word;
+                  word-wrap: break-word;
+                \`;
+              }
+
+              // Handle click with ASP.NET postback
+              button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const href = button.dataset.href;
+                if (href) {
+                  const match = href.match(/__doPostBack\('([^']+)','([^']+)'\)/);
+                  if (match) {
+                    __doPostBack(match[1], match[2]);
+                  } else {
+                    window.location.href = href;
+                  }
+                }
+              });
+
+              // Add active state styles
+              button.addEventListener('mousedown', () => {
+                button.style.transform = 'translateY(0)';
+                button.style.boxShadow = '0 2px 0 #c2410c, 0 4px 6px rgba(0, 0, 0, 0.1)';
+              });
+
+              button.addEventListener('mouseup', () => {
+                button.style.transform = 'translateY(-2px)';
+                button.style.boxShadow = '0 4px 0 #c2410c, 0 8px 12px rgba(0, 0, 0, 0.1)';
+              });
+
+              buttonContainer.appendChild(button);
+            });
+
+            // Hide original sidebar on mobile
+            const sidebar = document.querySelector('#sidebar');
+            if (sidebar) {
+              sidebar.style.display = 'none';
+            }
+          }
+        }
+        
+        // Run when page loads
+        addButtons();
+
+        // Run when URL changes
+        let lastUrl = location.href;
+        new MutationObserver(() => {
+          const url = location.href;
+          if (url !== lastUrl) {
+            lastUrl = url;
+            addButtons();
+          }
+        }).observe(document, {subtree: true, childList: true});
+
+        // Add styles for cards
         const style = document.createElement('style');
         style.textContent = ${JSON.stringify(customStyles)};
         document.head.appendChild(style);
 
-        // Add Font Awesome
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-        document.head.appendChild(link);
-
+        // Handle card icons
         document.querySelectorAll('.Hometile').forEach(card => {
           const content = document.createElement('div');
           content.className = 'Hometile-content';
@@ -492,182 +1195,564 @@ export default function App() {
           
           card.insertBefore(content, card.firstChild);
         });
+
+        // Create modal container
+        const modalContainer = document.createElement('div');
+        modalContainer.style.cssText = \`
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: none;
+          justify-content: center;
+          align-items: flex-start;
+          z-index: 9999;
+          overflow-y: auto;
+          padding: 20px;
+        \`;
+        document.body.appendChild(modalContainer);
+
+        // Handle button click
+        document.querySelectorAll('.leave-action-tile').forEach(button => {
+          button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const href = button.getAttribute('data-href');
+            
+            // Find the target form
+            const targetForm = document.querySelector(href);
+            if (!targetForm) return;
+
+            // Clone the form to preserve the original
+            const formClone = targetForm.cloneNode(true);
+            
+            // Style the form for modal display
+            formClone.style.cssText = \`
+              background: white;
+              padding: 20px;
+              border-radius: 12px;
+              width: 100%;
+              max-width: 800px;
+              margin: 20px auto;
+              position: relative;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            \`;
+
+            // Add close button
+            const closeButton = document.createElement('button');
+            closeButton.innerHTML = '×';
+            closeButton.style.cssText = \`
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              background: none;
+              border: none;
+              font-size: 24px;
+              cursor: pointer;
+              color: #666;
+              padding: 4px 8px;
+              z-index: 1;
+            \`;
+            
+            closeButton.onclick = () => {
+              modalContainer.style.display = 'none';
+              document.body.style.overflow = 'auto';
+              // Remove the cloned form
+              modalContainer.innerHTML = '';
+            };
+
+            // Show modal with cloned form
+            modalContainer.innerHTML = '';
+            modalContainer.appendChild(formClone);
+            formClone.appendChild(closeButton);
+            modalContainer.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Preserve form functionality
+            const inputs = formClone.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+              input.addEventListener('change', (e) => {
+                const originalInput = targetForm.querySelector(\`[name="\${input.name}"]\`);
+                if (originalInput) {
+                  originalInput.value = input.value;
+                  // Trigger change event on original input
+                  const event = new Event('change', { bubbles: true });
+                  originalInput.dispatchEvent(event);
+                }
+              });
+            });
+
+            // Find the buttons container
+            const buttonsContainer = document.querySelector('.buttons-container');
+            if (!buttonsContainer) {
+              // If buttons don't have the class yet, add it to the parent of the buttons
+              const firstButton = document.querySelector('input[type="submit"]')?.closest('.col-md-4')?.parentElement;
+              if (firstButton) {
+                firstButton.classList.add('buttons-container');
+              }
+            }
+
+            // When a button is clicked, hide the buttons container
+            document.querySelectorAll('input[type="submit"]').forEach(button => {
+              button.addEventListener('click', function() {
+                const container = document.querySelector('.buttons-container');
+                if (container) {
+                  container.style.display = 'none';
+                }
+              });
+            });
+
+            // When modal is closed, show the buttons container again
+            modalContainer.addEventListener('click', function(e) {
+              if (e.target === modalContainer) {
+                const container = document.querySelector('.buttons-container');
+                if (container) {
+                  container.style.display = '';
+                }
+              }
+            });
+
+            // Add close button event to show buttons
+            closeButton.addEventListener('click', function() {
+              const container = document.querySelector('.buttons-container');
+              if (container) {
+                container.style.display = '';
+              }
+            });
+
+            return false;
+          });
+        });
+
+        // Close modal when clicking outside
+        modalContainer.addEventListener('click', (e) => {
+          if (e.target === modalContainer) {
+            modalContainer.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            modalContainer.innerHTML = '';
+          }
+        });
+
+        // Add custom styles for form elements
+        const styles = document.createElement('style');
+        styles.textContent = \`
+          .x_panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 15px;
+            padding: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+
+          .x_title {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+          }
+
+          .x_title h4 {
+            color: #333;
+            font-size: 18px;
+            margin: 0;
+          }
+
+          .txtnewbig, .txtnewbigddl {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            margin: 4px 0;
+          }
+
+          .txtnewbigddl {
+            height: 38px;
+            background: white;
+          }
+
+          textarea.txtnewbigddl {
+            min-height: 60px;
+            resize: vertical;
+          }
+
+          .bebutton {
+            background: linear-gradient(135deg, #ea580c, #fb923c);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin: 5px;
+            transition: all 0.2s;
+          }
+
+          .bebutton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+
+          table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+          }
+
+          td {
+            padding: 8px;
+            vertical-align: middle;
+          }
+
+          span[id*="Label"] {
+            color: #444;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 4px;
+          }
+
+          .form-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+
+          @media (max-width: 768px) {
+            table {
+              display: block;
+            }
+            
+            tr {
+              margin-bottom: 15px;
+              display: block;
+            }
+            
+            td {
+              display: block;
+              width: 100%;
+              text-align: left;
+            }
+          }
+        \`;
+        document.head.appendChild(styles);
+
+        // Style specific form elements
+        document.querySelectorAll('.x_panel').forEach(panel => {
+          const inputs = panel.querySelectorAll('input, select, textarea');
+          inputs.forEach(input => {
+            if (input.type === 'text' || input.type === 'password') {
+              input.classList.add('txtnewbig');
+            }
+            if (input.tagName === 'SELECT') {
+              input.classList.add('txtnewbigddl');
+            }
+          });
+
+          const buttons = panel.querySelectorAll('input[type="submit"]');
+          buttons.forEach(button => {
+            button.classList.add('bebutton');
+          });
+        });
+
+        styles.textContent += \`
+          .buttons-container {
+            transition: display 0.3s ease;
+          }
+        \`;
       }
       true;
     }
   `;
 
-  if (hasError) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <SafeAreaView style={loginStyles.container}>
-          <LinearGradient
-            colors={['#0066CC', '#0044AA']}
-            style={loginStyles.gradientBackground}
-          >
-            <View style={loginStyles.errorContainer}>
-              <Ionicons name="warning-outline" size={60} color={colors.secondary} />
-              <Text style={[loginStyles.errorText, { color: colors.secondary }]}>
-                Unable to connect to Dodla Dairy
-              </Text>
-              <Text style={[loginStyles.errorSubText, { color: colors.secondary }]}>
-                Please check your internet connection
-              </Text>
-              <TouchableOpacity 
-                style={[loginStyles.loginButton, { backgroundColor: colors.secondary }]} 
-                onPress={retry}
-              >
-                <Text style={[loginStyles.loginButtonText, { color: colors.primary }]}>
-                  Retry
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  const injectedJavaScriptForForms = `
+    (function() {
+      // Add required styles
+      const styles = document.createElement('style');
+      styles.textContent = \`
+        .modal-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 9999;
+          display: none;
+        }
+        
+        .modal-content {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: white;
+          z-index: 10000;
+          padding: 20px;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
 
-  if (isLoggedIn) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <SafeAreaView style={loginStyles.container}>
-          <View style={{ flex: 1, backgroundColor: colors.primary }}>
-            <WebView
-              ref={webViewRef}
-              source={{ uri: 'https://portal.dodladairy.com/pace/pglogin.aspx' }}
-              style={{ 
-                flex: 1,
-                display: showWebView ? 'flex' : 'none'
-              }}
-              onLoadStart={() => setIsLoading(true)}
-              onNavigationStateChange={(navState) => {
-                if (!navState.url.includes('pglogin.aspx')) {
-                  setIsLoading(false);
-                  setShowWebView(true);
+        .modal-header {
+          position: sticky;
+          top: 0;
+          background: white;
+          padding: 10px 0;
+          border-bottom: 1px solid #eee;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 15px;
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #666;
+          padding: 5px 15px;
+          cursor: pointer;
+        }
+
+        .form-container {
+          padding-bottom: 20px;
+        }
+
+        body.modal-open {
+          overflow: hidden;
+          position: fixed;
+          width: 100%;
+        }
+
+        .hidden {
+          display: none !important;
+        }
+      \`;
+      document.head.appendChild(styles);
+
+      // Create modal container
+      const modalContainer = document.createElement('div');
+      modalContainer.className = 'modal-container';
+      document.body.appendChild(modalContainer);
+
+      // Handle form links
+      document.addEventListener('click', function(e) {
+        const target = e.target;
+        if (target.tagName === 'A' || target.closest('a')) {
+          const link = target.tagName === 'A' ? target : target.closest('a');
+          const href = link.getAttribute('href');
+          
+          if (href && (
+            href.includes('AttendanceRequest.aspx') || 
+            href.includes('pgpreapproval.aspx') || 
+            href.includes('pgleaveapplicationnew.aspx') || 
+            href.includes('HourbasedPermission.aspx')
+          )) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Hide the main content
+            const mainContent = document.querySelector('.nav.side-menu');
+            if (mainContent) {
+              mainContent.classList.add('hidden');
+            }
+
+            // Show modal
+            modalContainer.style.display = 'block';
+            document.body.classList.add('modal-open');
+
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.className = 'modal-content';
+
+            // Add header with close button
+            const header = document.createElement('div');
+            header.className = 'modal-header';
+            const title = document.createElement('h3');
+            title.textContent = link.textContent.trim();
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'modal-close';
+            closeBtn.innerHTML = '×';
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+            modalContent.appendChild(header);
+
+            // Add form container
+            const formContainer = document.createElement('div');
+            formContainer.className = 'form-container';
+            modalContent.appendChild(formContainer);
+            modalContainer.appendChild(modalContent);
+
+            // Load form content
+            fetch(href)
+              .then(response => response.text())
+              .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const formContent = doc.querySelector('.x_panel');
+                if (formContent) {
+                  formContainer.innerHTML = '';
+                  formContainer.appendChild(formContent.cloneNode(true));
                 }
-              }}
-              onError={handleError}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
-              onMessage={(event) => {
-                console.log('Message from WebView:', event.nativeEvent.data);
-              }}
-            />
-            {!showWebView && (
-              <View 
-                style={[
-                  loginStyles.loadingOverlay, 
-                  { 
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: colors.primary,
-                    zIndex: 1000
-                  }
-                ]}
-              >
-                <ActivityIndicator size="large" color={colors.secondary} />
-                <Text style={{ color: colors.secondary, marginTop: 10 }}>Logging in...</Text>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+              });
+
+            // Handle close button click
+            closeBtn.addEventListener('click', function() {
+              modalContainer.style.display = 'none';
+              modalContainer.innerHTML = '';
+              document.body.classList.remove('modal-open');
+              const mainContent = document.querySelector('.nav.side-menu');
+              if (mainContent) {
+                mainContent.classList.remove('hidden');
+              }
+            });
+          }
+        }
+      }, true);
+    })();
+    true;
+  `;
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <SafeAreaView style={loginStyles.container}>
-        <LinearGradient
-          colors={['#0066CC', '#0044AA']}
-          style={loginStyles.gradientBackground}
-        >
-          <View style={loginStyles.logoContainer}>
-            <Text style={{
-              fontSize: 28,
-              fontWeight: 'bold',
-              color: '#FFFFFF',
-              textAlign: 'center',
-              marginBottom: 10
-            }}>DODLA DAIRY</Text>
-            <Text style={{
-              fontSize: 16,
-              color: '#FFFFFF',
-              textAlign: 'center',
-              opacity: 0.9
-            }}>Employee Portal</Text>
-          </View>
-
-          <View style={loginStyles.formContainer}>
-            <View style={loginStyles.inputContainer}>
-              <Ionicons 
-                name="person-outline" 
-                size={20} 
-                color={colors.primary} 
-                style={loginStyles.icon} 
-              />
-              <TextInput
-                style={loginStyles.input}
-                placeholder="Employee ID"
-                value={username}
-                onChangeText={setUsername}
-                placeholderTextColor={colors.placeholder}
-              />
+      <SafeAreaView style={{ flex: 1 }}>
+        {!isLoggedIn ? (
+          // Login Form
+          <LinearGradient colors={[colors.primary, colors.secondary]} style={loginStyles.container}>
+            <View style={loginStyles.logoContainer}>
+              <Text style={{
+                fontSize: 28,
+                fontWeight: 'bold',
+                color: '#FFFFFF',
+                textAlign: 'center',
+                marginBottom: 10
+              }}>DODLA DAIRY</Text>
+              <Text style={{
+                fontSize: 16,
+                color: '#FFFFFF',
+                textAlign: 'center',
+                opacity: 0.9
+              }}>Employee Portal</Text>
             </View>
 
-            <View style={loginStyles.inputContainer}>
-              <Ionicons 
-                name="lock-closed-outline" 
-                size={20} 
-                color={colors.primary} 
-                style={loginStyles.icon} 
-              />
-              <TextInput
-                style={loginStyles.input}
-                placeholder="Password"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                placeholderTextColor={colors.placeholder}
-              />
-            </View>
+            <View style={loginStyles.formContainer}>
+              <View style={loginStyles.inputContainer}>
+                <Ionicons 
+                  name="person-outline" 
+                  size={20} 
+                  color={colors.primary} 
+                  style={loginStyles.icon} 
+                />
+                <TextInput
+                  style={loginStyles.input}
+                  placeholder="Employee ID"
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </View>
 
-            <TouchableOpacity 
-              style={loginStyles.loginButton} 
-              onPress={handleLogin}
-            >
-              <Text style={loginStyles.loginButtonText}>Login</Text>
-            </TouchableOpacity>
+              <View style={loginStyles.inputContainer}>
+                <Ionicons 
+                  name="lock-closed-outline" 
+                  size={20} 
+                  color={colors.primary} 
+                  style={loginStyles.icon} 
+                />
+                <TextInput
+                  style={loginStyles.input}
+                  placeholder="Password"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </View>
 
-            <View style={loginStyles.rememberContainer}>
               <TouchableOpacity 
-                style={[
-                  loginStyles.checkbox,
-                  rememberMe && loginStyles.checkboxChecked
-                ]}
-                onPress={() => setRememberMe(!rememberMe)}
+                style={loginStyles.loginButton} 
+                onPress={handleLogin}
               >
-                {rememberMe && (
-                  <Ionicons name="checkmark" size={16} color={colors.secondary} />
-                )}
+                <Text style={loginStyles.loginButtonText}>Login</Text>
               </TouchableOpacity>
-              <Text style={loginStyles.rememberText}>Remember me</Text>
-              <TouchableOpacity>
-                <Text style={loginStyles.forgotPassword}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
+
+              <View style={loginStyles.rememberContainer}>
+                <TouchableOpacity 
+                  style={[
+                    loginStyles.checkbox,
+                    rememberMe && loginStyles.checkboxChecked
+                  ]}
+                  onPress={() => setRememberMe(!rememberMe)}
+                >
+                  {rememberMe && (
+                    <Ionicons name="checkmark" size={16} color={colors.secondary} />
+                  )}
+                </TouchableOpacity>
+                <Text style={loginStyles.rememberText}>Remember me</Text>
+                <TouchableOpacity>
+                  <Text style={loginStyles.forgotPassword}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          </LinearGradient>
+        ) : (
+          // WebView after login
+          <View style={{ flex: 1 }}>
+            <WebView
+              ref={webViewRef}
+              source={{ uri: 'https://portal.dodladairy.com/pace/pglogin.aspx' }}
+              style={styles.webView}
+              onLoadStart={() => setIsLoading(true)}
+              onLoadEnd={() => setIsLoading(false)}
+              onError={handleError}
+              onNavigationStateChange={handleWebViewNavigationStateChange}
+              injectedJavaScript={injectedJavaScript}
+              injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded + injectedJavaScriptForForms}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+            />
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            )}
+            {hasError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load the page</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={retry}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {isFormVisible && (
+              <View style={styles.formModal}>
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setIsFormVisible(false);
+                    setCurrentFormUrl('');
+                    // Navigate back to main page
+                    webViewRef.current?.goBack();
+                  }}
+                >
+                  <Text style={styles.closeText}>×</Text>
+                </TouchableOpacity>
+                <WebView
+                  source={{ uri: currentFormUrl }}
+                  style={styles.webView}
+                  injectedJavaScript={injectedJavaScriptForForms}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
+              </View>
+            )}
           </View>
-        </LinearGradient>
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   );
