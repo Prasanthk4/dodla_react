@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, loginStyles } from './assets/styles';
 
+const BASE_URL = 'https://portal.dodladairy.com/pace/pglogin.aspx';
+
 const styles = StyleSheet.create({
   sidebarContainer: {
     flex: 1,
@@ -79,6 +81,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#666',
   },
+  button: {
+    backgroundColor: '#ea580c',
+    padding: 10,
+    borderRadius: 5,
+    margin: 10
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16
+  }
 });
 
 export default function App() {
@@ -90,7 +102,9 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [isReportVisible, setIsReportVisible] = useState(false);
   const [currentFormUrl, setCurrentFormUrl] = useState('');
+  const [reportUrl, setReportUrl] = useState('');
   const webViewRef = useRef(null);
 
   useEffect(() => {
@@ -175,7 +189,7 @@ export default function App() {
   const handleWebViewNavigationStateChange = (newNavState) => {
     const { url } = newNavState;
 
-    // Check if this is a form URL
+    // Check if this is a form URL (excluding reports)
     if (url && (
       url.includes('AttendanceRequest.aspx') ||
       url.includes('pgpreapproval.aspx') ||
@@ -187,7 +201,17 @@ export default function App() {
       return false; // Prevent default navigation
     }
 
-    // Allow other URLs to load normally
+    // Check if this is a report URL
+    if (url && (
+      url.includes('pgtimecardreporttotalemp.aspx') ||
+      url.includes('pgTimeCardReport.aspx')
+    )) {
+      setReportUrl(url);
+      setIsReportVisible(true);
+      return false; // Prevent default navigation
+    }
+
+    // Let other URLs navigate normally
     return true;
   };
 
@@ -221,6 +245,10 @@ export default function App() {
         setCurrentFormUrl('');
         webViewRef.current?.goBack();
         return true; // Prevents default back action
+      } else if (isReportVisible) {
+        setIsReportVisible(false);
+        setReportUrl('');
+        return true; // Prevents default back action
       }
       return false; // Allows default back action
     };
@@ -231,7 +259,7 @@ export default function App() {
     );
 
     return () => backHandler.remove(); // Cleanup on unmount
-  }, [isFormVisible]);
+  }, [isFormVisible, isReportVisible]);
 
   const customStyles = `
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
@@ -392,7 +420,7 @@ export default function App() {
       top: 0 !important;
       left: 0 !important;
       right: 0 !important;
-      height: 100% !important;
+      bottom: 0 !important;
       background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%) !important;
       border-radius: 20px !important;
     }
@@ -645,7 +673,7 @@ export default function App() {
               left: 0 !important;
               right: 0 !important;
               bottom: 0 !important;
-              background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%) !important;
+              background: linear-gradient(45deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%) !important;
               pointer-events: none !important;
             }
 
@@ -828,11 +856,12 @@ export default function App() {
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              background: linear-gradient(135deg, #ea580c, #fb923c);
-              color: white;
+              text-decoration: none;
               font-size: 13px;
               font-weight: 500;
               text-align: center;
+              color: white;
+              background: linear-gradient(135deg, #ea580c, #fb923c);
               box-shadow: 0 4px 0 #c2410c,
                          0 8px 12px rgba(0, 0, 0, 0.1);
               transform: translateY(-2px);
@@ -972,9 +1001,11 @@ export default function App() {
                 width: 100%;
               \`;
 
-              // Insert container at the top of the content
-              const contentArea = document.querySelector('form') || document.body;
-              contentArea.insertBefore(buttonContainer, contentArea.firstChild);
+              // Insert after the page title
+              const titleArea = document.querySelector('.page-title');
+              if (titleArea) {
+                titleArea.parentNode.insertBefore(buttonContainer, titleArea.nextSibling);
+              }
             }
 
             // Create buttons from sidebar links
@@ -992,16 +1023,14 @@ export default function App() {
               let iconClass = 'fa-solid fa-calendar-check'; // default icon
 
               // Assign specific icons based on link text
-              if (titleText.includes('requisition')) {
-                iconClass = 'fa-solid fa-file-circle-plus';
-              } else if (titleText.includes('report')) {
-                iconClass = 'fa-solid fa-chart-column';
-              } else if (titleText.includes('approval')) {
-                iconClass = 'fa-solid fa-clipboard-check';
-              } else if (titleText.includes('cancel')) {
-                iconClass = 'fa-solid fa-calendar-xmark';
+              if (titleText.includes('attendance')) {
+                iconClass = 'fa-solid fa-clock';
+              } else if (titleText.includes('c-off')) {
+                iconClass = 'fa-solid fa-calendar-plus';
               } else if (titleText.includes('leave')) {
                 iconClass = 'fa-solid fa-calendar-minus';
+              } else if (titleText.includes('report')) {
+                iconClass = 'fa-solid fa-chart-column';
               } else if (titleText.includes('time card')) {
                 iconClass = 'fa-solid fa-id-card';
               }
@@ -1360,79 +1389,83 @@ export default function App() {
           }
 
           .txtnewbig, .txtnewbigddl {
-            width: 100%;
+            width: 100% !important;
             padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            margin: 4px 0;
+            border: 1px solid #ddd !important;
+            border-radius: 6px !important;
+            font-size: 14px !important;
+            margin: 4px 0 !important;
+            background: white !important;
+            box-shadow: none !important;
+            height: auto !important;
           }
 
           .txtnewbigddl {
-            height: 38px;
-            background: white;
+            height: 38px !important;
+            background: white !important;
           }
 
           textarea.txtnewbigddl {
-            min-height: 60px;
-            resize: vertical;
+            min-height: 60px !important;
+            resize: vertical !important;
           }
 
           .bebutton {
-            background: linear-gradient(135deg, #ea580c, #fb923c);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            margin: 5px;
-            transition: all 0.2s;
+            background: linear-gradient(135deg, #ea580c, #fb923c) !important;
+            color: white !important;
+            padding: 10px 20px !important;
+            border: none !important;
+            border-radius: 6px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            margin: 5px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            min-width: 120px !important;
           }
 
           .bebutton:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
           }
 
           table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 8px;
+            width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
           }
 
           td {
-            padding: 8px;
-            vertical-align: middle;
+            padding: 8px !important;
+            vertical-align: middle !important;
           }
 
           span[id*="Label"] {
-            color: #444;
-            font-weight: 500;
-            display: inline-block;
-            margin-bottom: 4px;
+            color: #444 !important;
+            font-weight: 500 !important;
+            display: inline-block !important;
+            margin-bottom: 4px !important;
           }
 
           .form-container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
+            max-width: 1000px !important;
+            margin: 0 auto !important;
+            padding: 20px !important;
           }
 
           @media (max-width: 768px) {
             table {
-              display: block;
+              display: block !important;
             }
             
             tr {
-              margin-bottom: 15px;
-              display: block;
+              margin-bottom: 15px !important;
+              display: block !important;
             }
             
             td {
-              display: block;
-              width: 100%;
-              text-align: left;
+              display: block !important;
+              width: 100% !important;
+              text-align: left !important;
             }
           }
         \`;
@@ -1458,9 +1491,410 @@ export default function App() {
 
         styles.textContent += \`
           .buttons-container {
-            transition: display 0.3s ease;
+            transition: display 0.3s ease !important;
           }
         \`;
+
+        // Add form-specific styles
+        const formStyles = document.createElement('style');
+        formStyles.textContent = \`
+          /* Form Container Styles */
+          .modal-content {
+            padding: 15px !important;
+            border-radius: 12px !important;
+            max-width: 100% !important;
+            margin: 10px !important;
+            background: white !important;
+          }
+
+          /* Form Fields */
+          input[type="text"],
+          input[type="number"],
+          input[type="time"],
+          select,
+          textarea {
+            width: 100% !important;
+            padding: 10px !important;
+            margin: 5px 0 15px 0 !important;
+            border: 1px solid #ddd !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            background-color: white !important;
+          }
+
+          /* Labels */
+          label {
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            color: #333 !important;
+            margin-bottom: 5px !important;
+            display: block !important;
+          }
+
+          /* Form Row Layout */
+          .form-group {
+            margin-bottom: 15px !important;
+            width: 100% !important;
+          }
+
+          /* Buttons */
+          .btn-primary,
+          .btn-default,
+          input[type="submit"],
+          button[type="submit"] {
+            background: #ea580c !important;
+            color: white !important;
+            padding: 12px 20px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            margin: 5px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            min-width: 120px !important;
+          }
+
+          .btn-default,
+          button[type="reset"] {
+            background: #6B7280 !important;
+          }
+
+          /* Table Styles */
+          table {
+            width: 100% !important;
+            margin-bottom: 15px !important;
+            border-collapse: collapse !important;
+          }
+
+          td, th {
+            padding: 12px 8px !important;
+            border: 1px solid #ddd !important;
+            font-size: 14px !important;
+          }
+
+          /* Form Title */
+          .x_title h2 {
+            font-size: 20px !important;
+            font-weight: 600 !important;
+            color: #333 !important;
+            margin: 0 0 20px 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Fix select dropdowns */
+          select {
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 10px center !important;
+            padding-right: 30px !important;
+          }
+
+          /* Fix date inputs */
+          input[type="date"] {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            padding: 10px !important;
+          }
+
+          /* Button Container */
+          .form-actions {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 10px !important;
+            margin-top: 20px !important;
+            padding: 15px 0 !important;
+          }
+
+          /* Modal Close Button */
+          .close {
+            position: absolute !important;
+            right: 15px !important;
+            top: 15px !important;
+            font-size: 24px !important;
+            color: #666 !important;
+            opacity: 0.8 !important;
+            background: none !important;
+            border: none !important;
+            padding: 5px !important;
+          }
+
+          /* Form Section Spacing */
+          .x_content {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          /* Grid Layout Fixes */
+          .col-md-6,
+          .col-sm-6,
+          .col-xs-12 {
+            width: 100% !important;
+            padding: 0 10px !important;
+            float: none !important;
+          }
+
+          /* Error Messages */
+          .error-message {
+            color: #dc2626 !important;
+            font-size: 14px !important;
+            margin-top: 5px !important;
+          }
+
+          /* Required Field Indicator */
+          .required:after {
+            content: ' *' !important;
+            color: #dc2626 !important;
+          }
+        \`;
+        document.head.appendChild(formStyles);
+
+        // Add specific styles for attendance regularization form
+        const attendanceFormStyles = document.createElement('style');
+        attendanceFormStyles.textContent = \`
+          /* Target the specific form */
+          #ctl00_ContentPlaceHolder1_Panel2,
+          .attendance-form {
+            padding: 15px !important;
+            background: white !important;
+            border-radius: 12px !important;
+            margin: 10px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          /* Form rows */
+          #ctl00_ContentPlaceHolder1_Panel2 tr,
+          .attendance-form tr {
+            display: flex !important;
+            flex-direction: column !important;
+            margin-bottom: 15px !important;
+            width: 100% !important;
+          }
+
+          /* Form cells */
+          #ctl00_ContentPlaceHolder1_Panel2 td,
+          .attendance-form td {
+            display: block !important;
+            width: 100% !important;
+            padding: 5px 0 !important;
+            border: none !important;
+          }
+
+          /* Labels */
+          #ctl00_ContentPlaceHolder1_Label11,
+          #ctl00_ContentPlaceHolder1_Label10,
+          #ctl00_ContentPlaceHolder1_Label1,
+          #ctl00_ContentPlaceHolder1_Label2,
+          #ctl00_ContentPlaceHolder1_blrec0,
+          #ctl00_ContentPlaceHolder1_lblSwipe,
+          #ctl00_ContentPlaceHolder1_lblFromDate,
+          #ctl00_ContentPlaceHolder1_lblToDate,
+          #ctl00_ContentPlaceHolder1_lblShift,
+          #ctl00_ContentPlaceHolder1_lblShiftTo,
+          #ctl00_ContentPlaceHolder1_lblInTime,
+          #ctl00_ContentPlaceHolder1_lblOutTime,
+          #ctl00_ContentPlaceHolder1_lbldays,
+          #ctl00_ContentPlaceHolder1_lblQtr {
+            display: block !important;
+            margin-bottom: 5px !important;
+            font-weight: 500 !important;
+            color: #333 !important;
+            font-size: 14px !important;
+            position: relative !important;
+            padding-left: 25px !important;
+          }
+
+          /* Add icons before labels */
+          #ctl00_ContentPlaceHolder1_Label11::before {
+            content: "👤" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Label10::before {
+            content: "📝" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Label1::before {
+            content: "🔄" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Label2::before {
+            content: "📋" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_blrec0::before {
+            content: "👥" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_lblFromDate::before {
+            content: "📅" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_lblToDate::before {
+            content: "📅" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_lblInTime::before {
+            content: "⏰" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_lblOutTime::before {
+            content: "⏰" !important;
+            position: absolute !important;
+            left: 0 !important;
+          }
+
+          /* Submit and Clear buttons */
+          .bebutton {
+            background: linear-gradient(135deg, #ea580c, #fb923c) !important;
+            color: white !important;
+            padding: 12px 25px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            margin: 10px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            transition: all 0.3s ease !important;
+            min-width: 120px !important;
+          }
+
+          /* Textarea */
+          textarea.txtnewbigddl {
+            min-height: 80px !important;
+            resize: vertical !important;
+          }
+
+          /* Table layout */
+          table {
+            width: 100% !important;
+            border-spacing: 0 8px !important;
+          }
+
+          td {
+            padding: 8px !important;
+            vertical-align: top !important;
+          }
+
+          /* Responsive adjustments */
+          @media (max-width: 768px) {
+            .x_content {
+              padding: 15px !important;
+            }
+            
+            td {
+              display: block !important;
+              width: 100% !important;
+            }
+          }
+        \`;
+        document.head.appendChild(attendanceFormStyles);
+
+        // Add mobile form styles
+        const mobileFormStyles = document.createElement('style');
+        mobileFormStyles.textContent = \`
+          #ctl00_ContentPlaceHolder1_Panel2 {
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 20px !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Panel2 table {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            border: none !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Panel2 tr {
+            display: flex !important;
+            flex-direction: column !important;
+            margin-bottom: 15px !important;
+            width: 100% !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Panel2 td {
+            display: block !important;
+            width: 100% !important;
+            padding: 5px 0 !important;
+            border: none !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Panel2 input[type="text"],
+          #ctl00_ContentPlaceHolder1_Panel2 select {
+            width: 100% !important;
+            height: 40px !important;
+            padding: 10px !important;
+            margin: 5px 0 !important;
+            border: 1px solid #ddd !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            background-color: white !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_Panel2 input[type="submit"],
+          #ctl00_ContentPlaceHolder1_Panel2 input[type="button"] {
+            width: auto !important;
+            min-width: 120px !important;
+            padding: 12px 25px !important;
+            margin: 5px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_btnSubmit {
+            background: #ea580c !important;
+            color: white !important;
+          }
+
+          #ctl00_ContentPlaceHolder1_btnClear {
+            background: #6B7280 !important;
+            color: white !important;
+          }
+
+          .modal-content {
+            padding: 20px !important;
+            border-radius: 12px !important;
+            width: 90% !important;
+            max-width: 500px !important;
+            margin: 20px auto !important;
+            background: white !important;
+          }
+
+          .x_panel, .x_title, .x_content {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            background: none !important;
+          }
+
+          .form-group {
+            margin-bottom: 15px !important;
+          }
+        \`;
+        document.head.appendChild(mobileFormStyles);
       }
       true;
     }
@@ -1468,152 +1902,249 @@ export default function App() {
 
   const injectedJavaScriptForForms = `
     (function() {
-      // Add required styles
-      const styles = document.createElement('style');
-      styles.textContent = \`
-        .modal-container {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 9999;
-          display: none;
-        }
-        
-        .modal-content {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: white;
-          z-index: 10000;
-          padding: 20px;
-          overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
+      const style = document.createElement('style');
+      style.textContent = \`
+        /* Form Container */
+        .x_content {
+          padding: 20px !important;
+          background: #fff !important;
+          border-radius: 16px !important;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important;
+          margin: 16px !important;
         }
 
-        .modal-header {
-          position: sticky;
-          top: 0;
-          background: white;
-          padding: 10px 0;
-          border-bottom: 1px solid #eee;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 15px;
-        }
-
-        .modal-close {
-          background: none;
-          border: none;
-          font-size: 24px;
-          color: #666;
-          padding: 5px 15px;
-          cursor: pointer;
-        }
-
-        .form-container {
-          padding-bottom: 20px;
-        }
-
-        body.modal-open {
-          overflow: hidden;
-          position: fixed;
-          width: 100%;
-        }
-
-        .hidden {
+        /* Hide nav menu and footer */
+        .nav_menu, .footer {
           display: none !important;
         }
-      \`;
-      document.head.appendChild(styles);
 
-      // Create modal container
-      const modalContainer = document.createElement('div');
-      modalContainer.className = 'modal-container';
-      document.body.appendChild(modalContainer);
-
-      // Handle form links
-      document.addEventListener('click', function(e) {
-        const target = e.target;
-        if (target.tagName === 'A' || target.closest('a')) {
-          const link = target.tagName === 'A' ? target : target.closest('a');
-          const href = link.getAttribute('href');
-          
-          if (href && (
-            href.includes('AttendanceRequest.aspx') || 
-            href.includes('pgpreapproval.aspx') || 
-            href.includes('pgleaveapplicationnew.aspx') || 
-            href.includes('HourbasedPermission.aspx')
-          )) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Hide the main content
-            const mainContent = document.querySelector('.nav.side-menu');
-            if (mainContent) {
-              mainContent.classList.add('hidden');
-            }
-
-            // Show modal
-            modalContainer.style.display = 'block';
-            document.body.classList.add('modal-open');
-
-            // Create modal content
-            const modalContent = document.createElement('div');
-            modalContent.className = 'modal-content';
-
-            // Add header with close button
-            const header = document.createElement('div');
-            header.className = 'modal-header';
-            const title = document.createElement('h3');
-            title.textContent = link.textContent.trim();
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'modal-close';
-            closeBtn.innerHTML = '×';
-            header.appendChild(title);
-            header.appendChild(closeBtn);
-            modalContent.appendChild(header);
-
-            // Add form container
-            const formContainer = document.createElement('div');
-            formContainer.className = 'form-container';
-            modalContent.appendChild(formContainer);
-            modalContainer.appendChild(modalContent);
-
-            // Load form content
-            fetch(href)
-              .then(response => response.text())
-              .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const formContent = doc.querySelector('.x_panel');
-                if (formContent) {
-                  formContainer.innerHTML = '';
-                  formContainer.appendChild(formContent.cloneNode(true));
-                }
-              });
-
-            // Handle close button click
-            closeBtn.addEventListener('click', function() {
-              modalContainer.style.display = 'none';
-              modalContainer.innerHTML = '';
-              document.body.classList.remove('modal-open');
-              const mainContent = document.querySelector('.nav.side-menu');
-              if (mainContent) {
-                mainContent.classList.remove('hidden');
-              }
-            });
-          }
+        .right_col {
+          background: #f0f2f5 !important;
+          margin: 0 !important;
         }
-      }, true);
+
+        /* Fix endless scrolling */
+        #main_container {
+          height: 100vh !important;
+          overflow: hidden !important;
+        }
+
+        .container.body {
+          height: 100vh !important;
+          overflow: auto !important;
+        }
+
+        /* Form Layout */
+        form {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+        }
+
+        .form-group {
+          display: flex !important;
+          flex-direction: column !important;
+          margin-bottom: 8px !important;
+        }
+
+        /* Labels with Icons */
+        label, span[id*="Label"], span[id*="lbl"] {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-bottom: 10px !important;
+          font-weight: 500 !important;
+          color: #374151 !important;
+          font-size: 15px !important;
+        }
+
+        label::before, span[id*="Label"]::before, span[id*="lbl"]::before {
+          font-size: 18px !important;
+        }
+
+        /* Form Fields - Increased Height */
+        .txtnewbig, .txtnewbigddl, select, input[type="date"], input[type="time"] {
+          width: 100% !important;
+          height: 50px !important;
+          padding: 0 16px !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 12px !important;
+          font-size: 16px !important;
+          background: #f8fafc !important;
+          margin-bottom: 16px !important;
+          transition: all 0.2s ease !important;
+        }
+
+        /* Focus states */
+        .txtnewbig:focus, .txtnewbigddl:focus, select:focus, input[type="date"]:focus, input[type="time"]:focus {
+          border-color: #ea580c !important;
+          box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1) !important;
+          outline: none !important;
+        }
+
+        /* Select Dropdowns */
+        select {
+          appearance: none !important;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 16px center !important;
+          background-size: 18px !important;
+          padding-right: 48px !important;
+        }
+
+        /* Employee Info Section */
+        .employee-info {
+          background: #f8fafc !important;
+          padding: 20px !important;
+          border-radius: 12px !important;
+          margin-bottom: 24px !important;
+        }
+
+        /* Buttons Container */
+        .button-container {
+          display: flex !important;
+          gap: 16px !important;
+          margin-top: 24px !important;
+          justify-content: space-between !important;
+        }
+
+        /* Submit and Clear buttons */
+        .bebutton {
+          flex: 1 !important;
+          height: 54px !important;
+          background: linear-gradient(135deg, #ea580c, #fb923c) !important;
+          color: white !important;
+          padding: 0 20px !important;
+          border: none !important;
+          border-radius: 12px !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          box-shadow: 0 2px 4px rgba(234, 88, 12, 0.2) !important;
+          transition: all 0.2s ease !important;
+          text-align: center !important;
+        }
+
+        .bebutton:hover {
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 6px rgba(234, 88, 12, 0.25) !important;
+        }
+
+        /* Icons for specific fields */
+        #ctl00_ContentPlaceHolder1_Label11::before { content: "👤" !important; }
+        #ctl00_ContentPlaceHolder1_Label10::before { content: "🆔" !important; }
+        #ctl00_ContentPlaceHolder1_Label1::before { content: "🔄" !important; }
+        #ctl00_ContentPlaceHolder1_Label2::before { content: "📋" !important; }
+        #ctl00_ContentPlaceHolder1_blrec0::before { content: "👥" !important; }
+        #ctl00_ContentPlaceHolder1_lblFromDate::before { content: "📅" !important; }
+        #ctl00_ContentPlaceHolder1_lblToDate::before { content: "📅" !important; }
+        #ctl00_ContentPlaceHolder1_lblInTime::before { content: "⏰" !important; }
+        #ctl00_ContentPlaceHolder1_lblOutTime::before { content: "⏰" !important; }
+
+        /* Textarea */
+        textarea.txtnewbigddl {
+          height: 120px !important;
+          padding: 16px !important;
+          resize: vertical !important;
+        }
+
+        /* Table to Flex conversion */
+        table, tbody, tr, td {
+          display: block !important;
+          width: 100% !important;
+        }
+
+        tr {
+          margin-bottom: 20px !important;
+        }
+
+        /* Form Title */
+        .x_title h2 {
+          font-size: 22px !important;
+          color: #1e293b !important;
+          font-weight: 600 !important;
+          margin-bottom: 28px !important;
+          text-align: center !important;
+        }
+      \`;
+      document.head.appendChild(style);
     })();
     true;
   `;
+
+  const injectedJavaScriptForReports = `
+    (function() {
+      // Create a wrapper for the ASP.NET __doPostBack function
+      if (typeof(window.__doPostBack) === 'function') {
+        const originalDoPostBack = window.__doPostBack;
+        window.__doPostBack = function(eventTarget, eventArgument) {
+          try {
+            // Check if this is a report page
+            if (window.location.href.includes('pgtimecardreporttotalemp.aspx') || 
+                window.location.href.includes('pgTimeCardReport.aspx')) {
+              
+              // Get the form element
+              const form = document.forms['aspnetForm'];
+              if (form) {
+                // Set the __EVENTTARGET and __EVENTARGUMENT
+                const eventTargetElement = document.getElementById('__EVENTTARGET');
+                const eventArgumentElement = document.getElementById('__EVENTARGUMENT');
+                
+                if (eventTargetElement && eventArgumentElement) {
+                  eventTargetElement.value = eventTarget;
+                  eventArgumentElement.value = eventArgument;
+                  
+                  // Submit the form normally
+                  form.submit();
+                  return true;
+                }
+              }
+            }
+            
+            // For other pages, use the original function
+            return originalDoPostBack(eventTarget, eventArgument);
+          } catch (error) {
+            console.error('Error in __doPostBack:', error);
+            return false;
+          }
+        };
+      }
+
+      // Handle clicks on report links
+      document.addEventListener('click', function(e) {
+        const target = e.target;
+        if (target && target.tagName === 'A') {
+          const href = target.getAttribute('href');
+          if (href && (
+            href.includes('pgtimecardreporttotalemp.aspx') || 
+            href.includes('pgTimeCardReport.aspx')
+          )) {
+            e.preventDefault();
+            window.location.href = href;
+          }
+        }
+      }, true);
+
+      // Add form submit handler
+      const form = document.forms['aspnetForm'];
+      if (form) {
+        form.onsubmit = function(e) {
+          if (window.location.href.includes('pgtimecardreporttotalemp.aspx') || 
+              window.location.href.includes('pgTimeCardReport.aspx')) {
+            return true; // Allow form submission
+          }
+        };
+      }
+    })();
+    true;
+  `;
+
+  const handleReportPress = (reportType) => {
+    const url = reportType === 'timecard' 
+      ? 'https://portal.dodladairy.com/pace/pgtimecardreporttotalemp.aspx'
+      : 'https://portal.dodladairy.com/pace/pgTimeCardReport.aspx';
+    setReportUrl(url);
+    setIsReportVisible(true);
+  };
 
   return (
     <SafeAreaProvider>
@@ -1705,20 +2236,35 @@ export default function App() {
           <View style={{ flex: 1 }}>
             <WebView
               ref={webViewRef}
-              source={{ uri: 'https://portal.dodladairy.com/pace/pglogin.aspx' }}
+              source={{ uri: BASE_URL }}
               style={styles.webView}
               onLoadStart={() => setIsLoading(true)}
               onLoadEnd={() => setIsLoading(false)}
               onError={handleError}
               onNavigationStateChange={handleWebViewNavigationStateChange}
               injectedJavaScript={injectedJavaScript}
-              injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded + injectedJavaScriptForForms}
+              injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
               javaScriptEnabled={true}
               domStorageEnabled={true}
+              startInLoadingState={true}
+              scalesPageToFit={true}
+              allowFileAccess={true}
+              cacheEnabled={true}
+              allowUniversalAccessFromFileURLs={true}
+              onShouldStartLoadWithRequest={(request) => {
+                // Always allow form submissions
+                if (request.url.includes('pgtimecardreporttotalemp.aspx') || 
+                    request.url.includes('pgTimeCardReport.aspx')) {
+                  return true;
+                }
+                // For other URLs, use normal navigation handling
+                return handleWebViewNavigationStateChange({ url: request.url });
+              }}
+              mixedContentMode="compatibility"
             />
             {isLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="large" color="#ea580c" />
               </View>
             )}
             {hasError && (
@@ -1746,6 +2292,26 @@ export default function App() {
                   source={{ uri: currentFormUrl }}
                   style={styles.webView}
                   injectedJavaScript={injectedJavaScriptForForms}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
+              </View>
+            )}
+            {isReportVisible && (
+              <View style={styles.formModal}>
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setIsReportVisible(false);
+                    setReportUrl('');
+                  }}
+                >
+                  <Text style={styles.closeText}>×</Text>
+                </TouchableOpacity>
+                <WebView
+                  source={{ uri: reportUrl }}
+                  style={styles.webView}
+                  injectedJavaScript={injectedJavaScriptForReports}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
                 />
