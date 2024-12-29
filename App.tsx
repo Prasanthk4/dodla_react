@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, loginStyles } from './assets/styles';
+import { profilePageTransform } from './assets/profilePageTransform';
 
 const BASE_URL = 'https://portal.dodladairy.com/pace/pglogin.aspx';
 
@@ -597,7 +598,17 @@ export default function App() {
   `;
 
   const injectedJavaScript = `
-    (function() {
+  (function() {
+    // Check if we're on the profile page
+    if (window.location.href.includes('pgemployementInformation.aspx') ||
+        window.location.href.includes('pgtalentacquisitionform.aspx') ||
+        window.location.href.includes('pgnationalidinformation.aspx') ||
+        window.location.href.includes('pgeducationdetails.aspx') ||
+        window.location.href.includes('pgexperiancedetails.aspx') ||
+        window.location.href.includes('pgfamilydetails.aspx')) {
+      ${profilePageTransform}
+    }
+
       function initializePage() {
         // Add Font Awesome if not already added
         if (!document.querySelector('link[href*="font-awesome"]')) {
