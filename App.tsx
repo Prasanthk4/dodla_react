@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, loginStyles } from './assets/styles';
 import { profilePageTransform } from './assets/profilePageTransform';
+import { employeeBenefitsTransform } from './assets/employeeBenefitsTransform';
 
 const BASE_URL = 'https://portal.dodladairy.com/pace/pglogin.aspx';
 
@@ -600,13 +601,26 @@ export default function App() {
   const injectedJavaScript = `
   (function() {
     // Check if we're on the profile page
-    if (window.location.href.includes('pgemployementInformation.aspx') ||
+        if (window.location.href.includes('pgemployementInformation.aspx') ||
         window.location.href.includes('pgtalentacquisitionform.aspx') ||
         window.location.href.includes('pgnationalidinformation.aspx') ||
         window.location.href.includes('pgeducationdetails.aspx') ||
         window.location.href.includes('pgexperiancedetails.aspx') ||
         window.location.href.includes('pgfamilydetails.aspx')) {
       ${profilePageTransform}
+    }
+
+    // Check if we're on any benefits pages (this should be OUTSIDE the profile check)
+    const currentUrl = window.location.href.toLowerCase();
+    if (currentUrl.includes('/loan/home.aspx') || 
+        currentUrl.includes('/loan/pgloanentry.aspx') || 
+        currentUrl.includes('/pace/pgmarriagegiftrequest.aspx') || 
+        currentUrl.includes('/pace/pgrelocationlist.aspx')) {
+      ${employeeBenefitsTransform}
+    }
+
+    function initializePage() {
+      
     }
 
       function initializePage() {
