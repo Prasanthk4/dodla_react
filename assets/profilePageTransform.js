@@ -36,49 +36,86 @@ export const profilePageTransform = `
 
         .profile-banner {
           background: linear-gradient(135deg, #4f46e5, #818cf8) !important;
-          padding: 40px 20px !important;
+          padding: 30px 20px 50px !important;
           color: white !important;
           display: flex !important;
           align-items: center !important;
-          gap: 20px !important;
+          gap: 16px !important;
+          position: relative !important;
+          margin-bottom: -30px !important;
+          border-radius: 0 0 25px 25px !important;
+          box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.3) !important;
+          overflow: hidden !important;
+        }
+
+        .profile-banner::before {
+          content: '' !important;
+          position: absolute !important;
+          top: -50% !important;
+          left: -50% !important;
+          width: 200% !important;
+          height: 200% !important;
+          background: 
+            radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 70% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%) !important;
+          transform: rotate(-3deg) !important;
+          opacity: 0.8 !important;
+          z-index: 0 !important;
         }
 
         .profile-avatar {
-          width: 80px !important;
-          height: 80px !important;
+          width: 60px !important;
+          height: 60px !important;
           background: rgba(255, 255, 255, 0.2) !important;
           border-radius: 50% !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          font-size: 40px !important;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+          font-size: 30px !important;
+          position: relative !important;
+          z-index: 1 !important;
+          box-shadow: 
+            0 4px 12px rgba(0, 0, 0, 0.1),
+            inset 0 2px 4px rgba(255, 255, 255, 0.2) !important;
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+        }
+
+        .profile-info {
+          position: relative !important;
+          z-index: 1 !important;
         }
 
         .profile-info h1 {
           font-size: 24px !important;
           font-weight: 600 !important;
-          margin: 0 0 4px 0 !important;
+          margin: 0 0 2px 0 !important;
           color: white !important;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
         }
 
         .profile-info p {
-          font-size: 16px !important;
+          font-size: 14px !important;
           margin: 0 !important;
           opacity: 0.9 !important;
+          color: rgba(255, 255, 255, 0.9) !important;
         }
 
         .content-wrapper {
-          max-width: 1200px !important;
-          margin: 0 auto !important;
-          padding: 20px !important;
+          background: #f8fafc !important;
+          border-radius: 25px 25px 0 0 !important;
+          margin-top: -25px !important;
+          padding: 30px 20px !important;
+          position: relative !important;
+          z-index: 2 !important;
         }
 
         .section-title {
-          font-size: 18px !important;
+          font-size: 24px !important;
           font-weight: 600 !important;
           color: #1f2937 !important;
-          margin-bottom: 16px !important;
+          margin-bottom: 24px !important;
+          padding-left: 4px !important;
         }
 
         .buttons-grid {
@@ -133,6 +170,24 @@ export const profilePageTransform = `
           line-height: 1.2 !important;
         }
 
+        /* Hidden Buttons */
+        .profile-action-tile.hidden {
+          background-color: #f8fafc !important;
+          box-shadow: none !important;
+          pointer-events: none !important;
+          opacity: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+
+        .profile-action-tile.hidden .icon-wrapper,
+        .profile-action-tile.hidden .title-wrapper {
+          display: none !important;
+        }
+
         /* Hide original elements */
         .nav_menu, .top_nav, .footer, .site_title {
           display: none !important;
@@ -169,13 +224,14 @@ export const profilePageTransform = `
         /* Responsive adjustments */
         @media (max-width: 768px) {
           .profile-banner {
-            padding: 30px 16px !important;
+            padding: 25px 20px 40px !important;
+            margin-bottom: -25px !important;
           }
 
           .profile-avatar {
-            width: 60px !important;
-            height: 60px !important;
-            font-size: 30px !important;
+            width: 50px !important;
+            height: 50px !important;
+            font-size: 25px !important;
           }
 
           .profile-info h1 {
@@ -183,7 +239,16 @@ export const profilePageTransform = `
           }
 
           .profile-info p {
-            font-size: 14px !important;
+            font-size: 13px !important;
+          }
+
+          .content-wrapper {
+            padding: 25px 16px !important;
+          }
+
+          .section-title {
+            font-size: 20px !important;
+            margin-bottom: 20px !important;
           }
 
           .buttons-grid {
@@ -531,6 +596,296 @@ export const profilePageTransform = `
             transform: translateX(100%) !important;
           }
         }
+
+        /* Form Styles */
+        .form-control, select, input {
+          height: 48px !important;
+          padding: 12px 16px !important;
+          font-size: 16px !important;
+          border-radius: 12px !important;
+          border: 1px solid #e2e8f0 !important;
+          background-color: white !important;
+          width: 100% !important;
+          color: #1f2937 !important;
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 12px center !important;
+          background-size: 20px !important;
+          transition: all 0.2s ease-in-out !important;
+        }
+
+        select {
+          padding-right: 40px !important;
+        }
+
+        .form-control:focus, select:focus, input:focus {
+          outline: none !important;
+          border-color: #4f46e5 !important;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        }
+
+        /* Form Labels */
+        label, td:first-child {
+          font-size: 16px !important;
+          font-weight: 500 !important;
+          color: #4b5563 !important;
+          margin-bottom: 8px !important;
+          display: block !important;
+        }
+
+        /* Form Groups */
+        .form-group, tr {
+          margin-bottom: 24px !important;
+          display: block !important;
+        }
+
+        td {
+          display: block !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin-bottom: 8px !important;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+          .form-control, select, input {
+            height: 52px !important;
+            font-size: 16px !important;
+          }
+
+          label, td:first-child {
+            font-size: 15px !important;
+          }
+
+          .form-group, tr {
+            margin-bottom: 20px !important;
+          }
+        }
+
+        /* Form Page Styles */
+        .form-page {
+          background: #f8fafc !important;
+          min-height: 100vh !important;
+          padding: 20px !important;
+        }
+
+        .form-container {
+          background: white !important;
+          border-radius: 24px !important;
+          padding: 24px !important;
+          max-width: 800px !important;
+          margin: 0 auto !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        /* Section Titles */
+        .x_title {
+          border: none !important;
+          padding: 0 0 20px 0 !important;
+          margin-bottom: 24px !important;
+          border-bottom: 2px solid #e2e8f0 !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+
+        .x_title h2 {
+          font-size: 20px !important;
+          font-weight: 600 !important;
+          color: #1f2937 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* Form Groups */
+        .form-group {
+          background: #f8fafc !important;
+          border-radius: 16px !important;
+          padding: 20px !important;
+          margin-bottom: 20px !important;
+          border: 1px solid #e2e8f0 !important;
+          transition: all 0.2s ease-in-out !important;
+        }
+
+        .form-group:hover {
+          border-color: #cbd5e1 !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+        }
+
+        /* Labels */
+        label, td:first-child {
+          font-size: 15px !important;
+          font-weight: 500 !important;
+          color: #64748b !important;
+          margin-bottom: 8px !important;
+          display: block !important;
+          letter-spacing: 0.3px !important;
+        }
+
+        /* Required Fields */
+        .required::after {
+          content: '*' !important;
+          color: #ef4444 !important;
+          margin-left: 4px !important;
+        }
+
+        /* Form Controls */
+        .form-control, select, input:not([type="checkbox"]):not([type="radio"]) {
+          height: 48px !important;
+          padding: 12px 16px !important;
+          font-size: 15px !important;
+          border-radius: 12px !important;
+          border: 1px solid #e2e8f0 !important;
+          background-color: white !important;
+          width: 100% !important;
+          color: #1f2937 !important;
+          transition: all 0.2s ease-in-out !important;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        /* Checkboxes and Radios */
+        input[type="checkbox"], input[type="radio"] {
+          width: 20px !important;
+          height: 20px !important;
+          margin-right: 8px !important;
+          accent-color: #4f46e5 !important;
+        }
+
+        /* Focus States */
+        .form-control:focus, select:focus, input:focus {
+          outline: none !important;
+          border-color: #4f46e5 !important;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        }
+
+        /* Buttons */
+        .btn-primary, .btn-success {
+          height: 48px !important;
+          padding: 0 24px !important;
+          font-size: 16px !important;
+          font-weight: 500 !important;
+          border-radius: 12px !important;
+          background: #4f46e5 !important;
+          color: white !important;
+          border: none !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease-in-out !important;
+          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.1) !important;
+        }
+
+        .btn-primary:hover, .btn-success:hover {
+          background: #4338ca !important;
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2) !important;
+        }
+
+        /* Table Layout */
+        table {
+          width: 100% !important;
+          border-collapse: separate !important;
+          border-spacing: 0 16px !important;
+        }
+
+        tr {
+          margin-bottom: 0 !important;
+        }
+
+        td {
+          padding: 0 12px !important;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+          .form-container {
+            padding: 20px !important;
+            border-radius: 20px !important;
+          }
+
+          .form-group {
+            padding: 16px !important;
+            border-radius: 12px !important;
+          }
+
+          .x_title {
+            padding-bottom: 16px !important;
+            margin-bottom: 20px !important;
+          }
+
+          .x_title h2 {
+            font-size: 18px !important;
+          }
+        }
+
+        /* Form Styles */
+        .form-control, select, input {
+          height: 48px !important;
+          padding: 12px 16px !important;
+          font-size: 16px !important;
+          border-radius: 12px !important;
+          border: 1px solid #e2e8f0 !important;
+          background-color: white !important;
+          width: 100% !important;
+          color: #1f2937 !important;
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 12px center !important;
+          background-size: 20px !important;
+          transition: all 0.2s ease-in-out !important;
+        }
+
+        select {
+          padding-right: 40px !important;
+        }
+
+        .form-control:focus, select:focus, input:focus {
+          outline: none !important;
+          border-color: #4f46e5 !important;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        }
+
+        /* Form Labels */
+        label, td:first-child {
+          font-size: 16px !important;
+          font-weight: 500 !important;
+          color: #4b5563 !important;
+          margin-bottom: 8px !important;
+          display: block !important;
+        }
+
+        /* Form Groups */
+        .form-group, tr {
+          margin-bottom: 24px !important;
+          display: block !important;
+        }
+
+        td {
+          display: block !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin-bottom: 8px !important;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+          .form-control, select, input {
+            height: 52px !important;
+            font-size: 16px !important;
+          }
+
+          label, td:first-child {
+            font-size: 15px !important;
+          }
+
+          .form-group, tr {
+            margin-bottom: 20px !important;
+          }
+        }
       \`;
       document.head.appendChild(styleElement);
     };
@@ -696,7 +1051,7 @@ export const profilePageTransform = `
             // Add back button
             const backButton = document.createElement('button');
             backButton.className = 'back-button';
-            backButton.innerHTML = '<i class="fa fa-arrow-left"></i> Back';
+            backButton.innerHTML = '<i class="fa fa-arrow-left"></i>';
             backButton.onclick = () => {
               formPage.remove();
               document.querySelector('.profile-action-buttons').style.display = 'block';
@@ -730,45 +1085,67 @@ export const profilePageTransform = `
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
-                let formContent;
+                // Try to find the main content area
+                let formContent = doc.querySelector('.right_col');
                 
-                // Try multiple possible selectors to find the correct form
-                if (text.toLowerCase().includes('employment')) {
-                  formContent = doc.querySelector('#divEmployment') || 
-                              doc.querySelector('#ContentPlaceHolder1_divEmployment') ||
-                              doc.querySelector('[id$="divEmployment"]') ||
-                              doc.querySelector('.employment-info') ||
-                              // Find the form that contains employment-related fields
-                              Array.from(doc.querySelectorAll('form')).find(form => 
-                                form.innerHTML.toLowerCase().includes('employee code') ||
-                                form.innerHTML.toLowerCase().includes('employment information')
-                              );
-                } else if (text.toLowerCase().includes('personal')) {
-                  formContent = doc.querySelector('#divPersonal') ||
-                              doc.querySelector('#ContentPlaceHolder1_divPersonal') ||
-                              doc.querySelector('[id$="divPersonal"]');
-                } else if (text.toLowerCase().includes('national')) {
-                  formContent = doc.querySelector('#divNational') ||
-                              doc.querySelector('#ContentPlaceHolder1_divNational') ||
-                              doc.querySelector('[id$="divNational"]');
-                } else if (text.toLowerCase().includes('education')) {
-                  formContent = doc.querySelector('#divEducation') ||
-                              doc.querySelector('#ContentPlaceHolder1_divEducation') ||
-                              doc.querySelector('[id$="divEducation"]');
-                } else if (text.toLowerCase().includes('experience')) {
-                  formContent = doc.querySelector('#divExperience') ||
-                              doc.querySelector('#ContentPlaceHolder1_divExperience') ||
-                              doc.querySelector('[id$="divExperience"]');
-                } else if (text.toLowerCase().includes('family')) {
-                  formContent = doc.querySelector('#divFamily') ||
-                              doc.querySelector('#ContentPlaceHolder1_divFamily') ||
-                              doc.querySelector('[id$="divFamily"]');
-                }
-
                 if (formContent) {
+                  // Remove x_title sections
+                  const titleSections = formContent.querySelectorAll('.x_title');
+                  titleSections.forEach(section => section.remove());
+
                   // Clean up the form content
-                  formContainer.innerHTML = formContent.innerHTML || formContent;
+                  formContainer.innerHTML = formContent.innerHTML;
                   
+                  // Remove specified fields from National ID Information form
+                  if (text.toLowerCase().includes('national id')) {
+                    const fieldsToRemove = [
+                      'Document Type',
+                      'Document Number',
+                      'Name As Per Document',
+                      'Expiry Date'
+                    ];
+                    
+                    // Find and remove the specified fields
+                    const allRows = formContainer.querySelectorAll('tr');
+                    allRows.forEach(row => {
+                      const label = row.querySelector('label, td');
+                      if (label && fieldsToRemove.some(field => 
+                        label.textContent.trim().toLowerCase() === field.toLowerCase()
+                      )) {
+                        row.remove();
+                      }
+                    });
+                  }
+
+                  // Enhance form elements
+                  const enhanceFormElements = () => {
+                    // Remove any remaining x_title sections that might be dynamically added
+                    const dynamicTitles = formContainer.querySelectorAll('.x_title');
+                    dynamicTitles.forEach(title => title.remove());
+
+                    // Group remaining form fields
+                    const tables = formContainer.querySelectorAll('table');
+                    tables.forEach(table => {
+                      const formGroup = document.createElement('div');
+                      formGroup.className = 'form-group';
+                      
+                      // Move table into form group
+                      table.parentNode.insertBefore(formGroup, table);
+                      formGroup.appendChild(table);
+                    });
+
+                    // Add required indicator to required fields
+                    const requiredFields = formContainer.querySelectorAll('input[required], select[required]');
+                    requiredFields.forEach(field => {
+                      const label = field.previousElementSibling;
+                      if (label && label.tagName === 'LABEL') {
+                        label.innerHTML += ' <span class="required">*</span>';
+                      }
+                    });
+                  };
+
+                  enhanceFormElements();
+
                   // Prevent default form submissions
                   const forms = formContainer.querySelectorAll('form');
                   forms.forEach(form => {
@@ -804,7 +1181,17 @@ export const profilePageTransform = `
       // Add profile menu buttons
       const menuLinks = sidebarMenu.querySelectorAll('a');
       menuLinks.forEach(link => {
-        if (!link.id.includes('lnkbtnportalhome')) {
+        const text = link.textContent.trim();
+        // Skip portal home button
+        if (link.id.includes('lnkbtnportalhome')) {
+          return;
+        }
+        // Hide Education and Family Information buttons
+        if (text.toLowerCase().includes('education') || text.toLowerCase().includes('family')) {
+          const button = createButton(link);
+          button.classList.add('hidden');
+          buttonsGrid.appendChild(button);
+        } else {
           buttonsGrid.appendChild(createButton(link));
         }
       });
