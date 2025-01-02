@@ -9,6 +9,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, loginStyles } from './assets/styles';
 import { profilePageTransform } from './assets/profilePageTransform';
 import { employeeBenefitsTransform } from './assets/employeeBenefitsTransform';
+import { leaveAttendanceTransform } from './assets/leaveAttendanceTransform';
+import { headerTransform } from './assets/headerTransform';
+import { sidebarTransform } from './assets/sidebarTransform';
+import { employmentFormTransform } from './assets/employmentFormTransform';
+import { profileTransform } from './assets/profileTransform';
+import { personalDetailsFormTransform } from './assets/personalDetailsFormTransform';
+
+
 
 const BASE_URL = 'https://portal.dodladairy.com/pace/pglogin.aspx';
 
@@ -108,6 +116,7 @@ export default function App() {
   const [currentFormUrl, setCurrentFormUrl] = useState('');
   const [reportUrl, setReportUrl] = useState('');
   const webViewRef = useRef(null);
+  
 
   useEffect(() => {
     loadSavedCredentials();
@@ -144,6 +153,52 @@ export default function App() {
     } catch (error) {
       console.log('Error clearing credentials:', error);
     }
+  };
+      
+  const handleWebViewNavigationStateChange = (newNavState) => {
+    const { url } = newNavState;
+    
+    // For debugging
+    console.log('Current URL:', url);
+      
+    // Inject appropriate transforms based on page type
+    if (url && url.toLowerCase().includes('pgemployementinformation.aspx')) {
+      console.log('Injecting employment form transform');
+      webViewRef.current?.injectJavaScript(employmentFormTransform);
+    } else if (url && url.toLowerCase().includes('pgtalentacquisitionform.aspx')) {
+      console.log('Injecting personal details form transform');
+      webViewRef.current?.injectJavaScript(personalDetailsFormTransform);
+    } else if (url && url.toLowerCase().includes('profile')) {
+      webViewRef.current?.injectJavaScript(profileTransform);
+    } else if (!url.includes('pglogin.aspx')) {
+      webViewRef.current?.injectJavaScript(headerTransform);
+      webViewRef.current?.injectJavaScript(sidebarTransform);
+    }
+    
+    // Check if this is a form URL (excluding reports)
+    if (url && (
+      url.includes('AttendanceRequest.aspx') ||
+      url.includes('pgpreapproval.aspx') ||
+      url.includes('pgleaveapplicationnew.aspx') ||
+      url.includes('HourbasedPermission.aspx')
+    )) {
+      setCurrentFormUrl(url);
+      setIsFormVisible(true);
+      return false; // Prevent default navigation
+    }
+  
+    // Check if this is a report URL
+    if (url && (
+      url.includes('pgtimecardreporttotalemp.aspx') ||
+      url.includes('pgTimeCardReport.aspx')
+    )) {
+      setReportUrl(url);
+      setIsReportVisible(true);
+      return false; // Prevent default navigation
+    }
+  
+    // Let other URLs navigate normally
+    return true;
   };
 
   const handleLogin = async () => {
@@ -186,35 +241,6 @@ export default function App() {
         );
       }, 1500);
     }
-  };
-
-  const handleWebViewNavigationStateChange = (newNavState) => {
-    const { url } = newNavState;
-
-    // Check if this is a form URL (excluding reports)
-    if (url && (
-      url.includes('AttendanceRequest.aspx') ||
-      url.includes('pgpreapproval.aspx') ||
-      url.includes('pgleaveapplicationnew.aspx') ||
-      url.includes('HourbasedPermission.aspx')
-    )) {
-      setCurrentFormUrl(url);
-      setIsFormVisible(true);
-      return false; // Prevent default navigation
-    }
-
-    // Check if this is a report URL
-    if (url && (
-      url.includes('pgtimecardreporttotalemp.aspx') ||
-      url.includes('pgTimeCardReport.aspx')
-    )) {
-      setReportUrl(url);
-      setIsReportVisible(true);
-      return false; // Prevent default navigation
-    }
-
-    // Let other URLs navigate normally
-    return true;
   };
 
   const handleError = (syntheticEvent) => {
@@ -610,6 +636,20 @@ export default function App() {
       ${profilePageTransform}
     }
 
+    // Check if we're on leave attendance pages
+const isLeaveAttendancePage = () => {
+  const url = window.location.href.toLowerCase();
+  return url.includes('default3.aspx') || 
+         url.includes('attendancerequest.aspx') || 
+         url.includes('pgpreapproval.aspx') || 
+         url.includes('pgleaveapplicationnew.aspx') || 
+         url.includes('hourbasedpermission.aspx');
+};
+
+if (isLeaveAttendancePage()) {
+  ${leaveAttendanceTransform}
+}
+
     // Check if we're on any benefits pages (this should be OUTSIDE the profile check)
     const currentUrl = window.location.href.toLowerCase();
     if (currentUrl.includes('/loan/home.aspx') || 
@@ -631,361 +671,6 @@ export default function App() {
           link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
           document.head.appendChild(link);
         }
-
-        function transformLeaveAttendancePage() {
-          console.log('Checking page...');
-          
-          // Find the sidebar menu items - using the correct selectors from the ASP.NET page
-          const requisitionsMenu = document.querySelector('#ctl00_requisitions .nav.child_menu');
-          const reportsMenu = document.querySelector('#ctl00_Reports .nav.child_menu');
-          
-          if (!requisitionsMenu && !reportsMenu) {
-            console.log('Menus not found, retrying...');
-            setTimeout(transformLeaveAttendancePage, 500);
-            return;
-          }
-
-          // Create and insert header first
-          const mainContent = document.querySelector('.right_col');
-          if (mainContent) {
-            // Remove existing header if any
-            const existingHeader = document.querySelector('.custom-header');
-            if (existingHeader) {
-              existingHeader.remove();
-            }
-
-            // Create new header
-            const header = document.createElement('div');
-            header.className = 'custom-header';
-            
-            // Get username from the page
-            const usernameElement = document.querySelector('.profile_info span');
-            const username = usernameElement ? usernameElement.textContent.trim() : 'Welcome';
-            
-            header.innerHTML = \`
-              <div class="header-content">
-                <div class="header-title">
-                  <i class="fa fa-calendar-check-o header-icon"></i>
-                  Leave & Attendance
-                </div>
-              </div>
-            \`;
-
-            // Insert header at the top
-            mainContent.insertBefore(header, mainContent.firstChild);
-          }
-
-          // Add styles with higher z-index and !important rules
-          const headerStyles = document.createElement('style');
-          headerStyles.textContent = \`
-            .custom-header {
-              background: linear-gradient(135deg, #ea580c, #fb923c) !important;
-              padding: 15px !important;
-              margin: -10px -15px 20px -15px !important;
-              color: white !important;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-              position: relative !important;
-              overflow: hidden !important;
-              z-index: 1000 !important;
-              display: block !important;
-              width: calc(100% + 30px) !important;
-            }
-
-            .custom-header::before {
-              content: '' !important;
-              position: absolute !important;
-              top: 0 !important;
-              left: 0 !important;
-              right: 0 !important;
-              bottom: 0 !important;
-              background: linear-gradient(45deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%) !important;
-              pointer-events: none !important;
-            }
-
-            .header-content {
-              position: relative !important;
-              z-index: 1001 !important;
-              display: flex !important;
-              align-items: center !important;
-              padding-left: 15px !important;
-            }
-
-            .header-title {
-              font-size: 24px !important;
-              font-weight: 600 !important;
-              color: white !important;
-              display: flex !important;
-              align-items: center !important;
-              gap: 10px !important;
-            }
-
-            .header-icon {
-              font-size: 20px !important;
-            }
-
-            .right_col {
-              padding-top: 0 !important;
-              margin-top: 0 !important;
-            }
-          \`;
-          document.head.appendChild(headerStyles);
-
-          // Rest of your existing styles
-          const styleElement = document.createElement('style');
-          styleElement.textContent = \`
-            body.nav-md .container.body .right_col {
-              margin: 0 !important;
-              padding: 0 !important;
-              min-height: 100vh !important;
-              max-height: 100vh !important;
-              overflow-y: auto !important;
-              position: fixed !important;
-              width: 100% !important;
-              top: 0 !important;
-              left: 0 !important;
-            }
-            .nav_menu, .top_nav {
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-              right: 0 !important;
-              height: 0 !important;
-              min-height: 0 !important;
-              overflow: hidden !important;
-              opacity: 0 !important;
-              z-index: -1 !important;
-              background: white !important;
-              border: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            .right_col {
-              background: white !important;
-              margin-top: 0 !important;
-              padding-top: 10px !important;
-            }
-            .page-title, .title_left h3 {
-              display: none !important;
-            }
-            html, body {
-              touch-action: none !important;
-              -ms-touch-action: none !important;
-              user-zoom: fixed !important;
-              -ms-user-zoom: fixed !important;
-              -webkit-user-zoom: fixed !important;
-              zoom: 100% !important;
-              max-width: 100% !important;
-              overflow-x: hidden !important;
-            }
-            footer, .footer {
-              display: none !important;
-            }
-            .container.body {
-              height: 100vh !important;
-              overflow: hidden !important;
-            }
-            .leave-action-buttons {
-              margin-bottom: 20px !important;
-              position: relative !important;
-              z-index: 2 !important;
-            }
-            /* Hide the blue header bar */
-            .x_panel, .x_title, .x_content {
-              display: none !important;
-            }
-            /* Create a white overlay below buttons */
-            .leave-action-buttons::after {
-              content: '';
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-              right: 0 !important;
-              bottom: 0 !important;
-              background: white !important;
-              z-index: 1 !important;
-            }
-            /* Ensure buttons stay above the overlay */
-            .leave-action-tile {
-              position: relative !important;
-              z-index: 3 !important;
-            }
-          \`;
-          document.head.appendChild(styleElement);
-
-          // Create container for buttons
-          let buttonContainer = document.querySelector('.leave-action-buttons');
-          if (!buttonContainer) {
-            buttonContainer = document.createElement('div');
-            buttonContainer.className = 'leave-action-buttons';
-            buttonContainer.style.cssText = \`
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-              gap: 12px;
-              padding: 12px;
-              margin: 15px auto;
-              max-width: 800px;
-              width: calc(100% - 24px);
-              background: #f8fafc;
-              border-radius: 12px;
-            \`;
-
-            // Insert after the page title
-            const titleArea = document.querySelector('.page-title');
-            if (titleArea) {
-              titleArea.parentNode.insertBefore(buttonContainer, titleArea.nextSibling);
-            }
-          }
-
-          // Clear existing buttons
-          buttonContainer.innerHTML = '';
-
-          // Function to create button
-          function createButton(link, type) {
-            const button = document.createElement('div');
-            button.className = 'leave-action-tile';
-            
-            // Get href and text
-            const href = link.getAttribute('href');
-            const text = link.textContent.trim();
-            
-            // Determine icon based on text
-            let iconClass = 'fa-solid fa-calendar-check'; // default icon
-
-            // Assign specific icons based on link text
-            if (text.toLowerCase().includes('attendance')) {
-              iconClass = 'fa-solid fa-clock';
-            } else if (text.toLowerCase().includes('c-off')) {
-              iconClass = 'fa-solid fa-calendar-plus';
-            } else if (text.toLowerCase().includes('leave')) {
-              iconClass = 'fa-solid fa-calendar-minus';
-            } else if (text.toLowerCase().includes('report')) {
-              iconClass = 'fa-solid fa-chart-column';
-            } else if (text.toLowerCase().includes('time card')) {
-              iconClass = 'fa-solid fa-id-card';
-            }
-
-            button.innerHTML = \`
-              <div class="icon-wrapper">
-                <i class="\${iconClass}"></i>
-              </div>
-              <div class="title-wrapper">\${text}</div>
-            \`;
-
-            // Style the button
-            button.style.cssText = \`
-              position: relative;
-              aspect-ratio: 1.2;
-              border-radius: 16px;
-              padding: 12px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              text-decoration: none;
-              font-size: 13px;
-              font-weight: 500;
-              text-align: center;
-              color: white;
-              background: linear-gradient(135deg, #ea580c, #fb923c);
-              box-shadow: 0 4px 0 #c2410c,
-                         0 8px 12px rgba(0, 0, 0, 0.1);
-              transform: translateY(-2px);
-              transition: all 0.2s;
-              cursor: pointer;
-              -webkit-tap-highlight-color: transparent;
-            \`;
-
-            // Style icon wrapper
-            const iconWrapper = button.querySelector('.icon-wrapper');
-            if (iconWrapper) {
-              iconWrapper.style.cssText = \`
-                width: 36px;
-                height: 36px;
-                margin-bottom: 8px;
-                border-radius: 50%;
-                background: rgba(255, 255, 255, 0.2);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-              \`;
-            }
-
-            // Style title wrapper
-            const titleWrapper = button.querySelector('.title-wrapper');
-            if (titleWrapper) {
-              titleWrapper.style.cssText = \`
-                font-size: 12px;
-                line-height: 1.2;
-                margin-top: 4px;
-                max-width: 100%;
-                overflow-wrap: break-word;
-                word-wrap: break-word;
-              \`;
-            }
-
-            // Handle click
-            button.addEventListener('click', (e) => {
-              e.preventDefault();
-              if (href && href !== '#') {
-                if (href.includes('.aspx')) {
-                  window.location.href = href;
-                } else {
-                  // Handle ASP.NET postback
-                  __doPostBack(href.replace('javascript:__doPostBack(\\'', '').replace('\\',\\'\\')', ''), '');
-                }
-              }
-            });
-
-            // Add press effect
-            button.addEventListener('mousedown', () => {
-              button.style.transform = 'translateY(0)';
-              button.style.boxShadow = '0 2px 0 #c2410c, 0 4px 6px rgba(0, 0, 0, 0.1)';
-            });
-
-            button.addEventListener('mouseup', () => {
-              button.style.transform = 'translateY(-2px)';
-              button.style.boxShadow = '0 4px 0 #c2410c, 0 8px 12px rgba(0, 0, 0, 0.1)';
-            });
-
-            return button;
-          }
-
-          // Add requisition buttons
-          if (requisitionsMenu) {
-            const links = requisitionsMenu.querySelectorAll('a');
-            links.forEach(link => {
-              buttonContainer.appendChild(createButton(link, 'requisition'));
-            });
-          }
-
-          // Add report buttons
-          if (reportsMenu) {
-            const links = reportsMenu.querySelectorAll('a');
-            links.forEach(link => {
-              buttonContainer.appendChild(createButton(link, 'report'));
-            });
-          }
-
-          // Hide original sidebar on mobile
-          const sidebar = document.querySelector('.left_col');
-          if (sidebar && window.innerWidth <= 768) {
-            sidebar.style.display = 'none';
-          }
-        }
-
-        // Initial transform
-        transformLeaveAttendancePage();
-
-        // Watch for URL changes
-        let lastUrl = location.href;
-        new MutationObserver(() => {
-          const url = location.href;
-          if (url !== lastUrl) {
-            lastUrl = url;
-            transformLeaveAttendancePage();
-          }
-        }).observe(document, {subtree: true, childList: true});
       }
 
       // Initialize when ready
@@ -1005,170 +690,7 @@ export default function App() {
         document.getElementById('txtPassword').value = '${password}';
         document.getElementById('btnLogin').click();
       } else {
-        // Function to add buttons
-        function addButtons() {
-          // Only proceed if we're on the leave-attendance page
-          if (window.location.href.toLowerCase().includes('leave')) {
-            // Find all sidebar links
-            const sidebarLinks = document.querySelectorAll('.nav.side-menu > li > a');
-            
-            // Create container for buttons
-            let buttonContainer = document.querySelector('.leave-action-buttons');
-            if (!buttonContainer) {
-              buttonContainer = document.createElement('div');
-              buttonContainer.className = 'leave-action-buttons';
-              buttonContainer.style.cssText = \`
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 12px;
-                padding: 12px;
-                margin-top: 20px;
-                width: 100%;
-              \`;
 
-              // Insert after the page title
-              const titleArea = document.querySelector('.page-title');
-              if (titleArea) {
-                titleArea.parentNode.insertBefore(buttonContainer, titleArea.nextSibling);
-              }
-            }
-
-            // Create buttons from sidebar links
-            sidebarLinks.forEach(link => {
-              // Skip if button already exists
-              const existingButton = buttonContainer.querySelector(\`[data-href="\${link.href}"]\`);
-              if (existingButton) return;
-
-              const button = document.createElement('div');
-              button.className = 'leave-action-tile';
-              button.dataset.href = link.href;
-
-              // Clean up the link text and get icon
-              const titleText = link.textContent.trim().toLowerCase();
-              let iconClass = 'fa-solid fa-calendar-check'; // default icon
-
-              // Assign specific icons based on link text
-              if (titleText.includes('attendance')) {
-                iconClass = 'fa-solid fa-clock';
-              } else if (titleText.includes('c-off')) {
-                iconClass = 'fa-solid fa-calendar-plus';
-              } else if (titleText.includes('leave')) {
-                iconClass = 'fa-solid fa-calendar-minus';
-              } else if (titleText.includes('report')) {
-                iconClass = 'fa-solid fa-chart-column';
-              } else if (titleText.includes('time card')) {
-                iconClass = 'fa-solid fa-id-card';
-              }
-
-              button.innerHTML = \`
-                <div class="icon-wrapper">
-                  <i class="\${iconClass}"></i>
-                </div>
-                <div class="title-wrapper">\${link.textContent.trim()}</div>
-              \`;
-
-              // Style the button similar to home page tiles
-              button.style.cssText = \`
-                position: relative;
-                aspect-ratio: 1.2;
-                border-radius: 16px;
-                padding: 12px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                text-decoration: none;
-                font-size: 13px;
-                font-weight: 500;
-                line-height: 1.4;
-                text-align: center;
-                color: white;
-                background: linear-gradient(135deg, #ea580c, #fb923c);
-                box-shadow: 0 4px 0 #c2410c,
-                           0 8px 12px rgba(0, 0, 0, 0.1);
-                transform: translateY(-2px);
-                transition: all 0.2s;
-                cursor: pointer;
-                -webkit-tap-highlight-color: transparent;
-              \`;
-
-              // Style icon wrapper
-              const iconWrapper = button.querySelector('.icon-wrapper');
-              if (iconWrapper) {
-                iconWrapper.style.cssText = \`
-                  width: 36px;
-                  height: 36px;
-                  margin-bottom: 8px;
-                  border-radius: 50%;
-                  background: rgba(255, 255, 255, 0.2);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 18px;
-                \`;
-              }
-
-              // Style title wrapper
-              const titleWrapper = button.querySelector('.title-wrapper');
-              if (titleWrapper) {
-                titleWrapper.style.cssText = \`
-                  font-size: 12px;
-                  line-height: 1.2;
-                  margin-top: 4px;
-                  max-width: 100%;
-                  overflow-wrap: break-word;
-                  word-wrap: break-word;
-                \`;
-              }
-
-              // Handle click with ASP.NET postback
-              button.addEventListener('click', (e) => {
-                e.preventDefault();
-                const href = button.dataset.href;
-                if (href) {
-                  const match = href.match(/__doPostBack\('([^']+)','([^']+)'\)/);
-                  if (match) {
-                    __doPostBack(match[1], match[2]);
-                  } else {
-                    window.location.href = href;
-                  }
-                }
-              });
-
-              // Add active state styles
-              button.addEventListener('mousedown', () => {
-                button.style.transform = 'translateY(0)';
-                button.style.boxShadow = '0 2px 0 #c2410c, 0 4px 6px rgba(0, 0, 0, 0.1)';
-              });
-
-              button.addEventListener('mouseup', () => {
-                button.style.transform = 'translateY(-2px)';
-                button.style.boxShadow = '0 4px 0 #c2410c, 0 8px 12px rgba(0, 0, 0, 0.1)';
-              });
-
-              buttonContainer.appendChild(button);
-            });
-
-            // Hide original sidebar on mobile
-            const sidebar = document.querySelector('#sidebar');
-            if (sidebar) {
-              sidebar.style.display = 'none';
-            }
-          }
-        }
-        
-        // Run when page loads
-        addButtons();
-
-        // Run when URL changes
-        let lastUrl = location.href;
-        new MutationObserver(() => {
-          const url = location.href;
-          if (url !== lastUrl) {
-            lastUrl = url;
-            addButtons();
-          }
-        }).observe(document, {subtree: true, childList: true});
 
         // Add styles for cards
         const style = document.createElement('style');
@@ -1676,164 +1198,6 @@ export default function App() {
         \`;
         document.head.appendChild(formStyles);
 
-        // Add specific styles for attendance regularization form
-        const attendanceFormStyles = document.createElement('style');
-        attendanceFormStyles.textContent = \`
-          /* Target the specific form */
-          #ctl00_ContentPlaceHolder1_Panel2,
-          .attendance-form {
-            padding: 15px !important;
-            background: white !important;
-            border-radius: 12px !important;
-            margin: 10px !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-          }
-
-          /* Form rows */
-          #ctl00_ContentPlaceHolder1_Panel2 tr,
-          .attendance-form tr {
-            display: flex !important;
-            flex-direction: column !important;
-            margin-bottom: 15px !important;
-            width: 100% !important;
-          }
-
-          /* Form cells */
-          #ctl00_ContentPlaceHolder1_Panel2 td,
-          .attendance-form td {
-            display: block !important;
-            width: 100% !important;
-            padding: 5px 0 !important;
-            border: none !important;
-          }
-
-          /* Labels */
-          #ctl00_ContentPlaceHolder1_Label11,
-          #ctl00_ContentPlaceHolder1_Label10,
-          #ctl00_ContentPlaceHolder1_Label1,
-          #ctl00_ContentPlaceHolder1_Label2,
-          #ctl00_ContentPlaceHolder1_blrec0,
-          #ctl00_ContentPlaceHolder1_lblSwipe,
-          #ctl00_ContentPlaceHolder1_lblFromDate,
-          #ctl00_ContentPlaceHolder1_lblToDate,
-          #ctl00_ContentPlaceHolder1_lblShift,
-          #ctl00_ContentPlaceHolder1_lblShiftTo,
-          #ctl00_ContentPlaceHolder1_lblInTime,
-          #ctl00_ContentPlaceHolder1_lblOutTime,
-          #ctl00_ContentPlaceHolder1_lbldays,
-          #ctl00_ContentPlaceHolder1_lblQtr {
-            display: block !important;
-            margin-bottom: 5px !important;
-            font-weight: 500 !important;
-            color: #333 !important;
-            font-size: 14px !important;
-            position: relative !important;
-            padding-left: 25px !important;
-          }
-
-          /* Add icons before labels */
-          #ctl00_ContentPlaceHolder1_Label11::before {
-            content: "👤" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_Label10::before {
-            content: "📝" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_Label1::before {
-            content: "🔄" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_Label2::before {
-            content: "📋" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_blrec0::before {
-            content: "👥" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_lblFromDate::before {
-            content: "📅" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_lblToDate::before {
-            content: "📅" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_lblInTime::before {
-            content: "⏰" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          #ctl00_ContentPlaceHolder1_lblOutTime::before {
-            content: "⏰" !important;
-            position: absolute !important;
-            left: 0 !important;
-          }
-
-          /* Submit and Clear buttons */
-          .bebutton {
-            background: linear-gradient(135deg, #ea580c, #fb923c) !important;
-            color: white !important;
-            padding: 12px 25px !important;
-            border: none !important;
-            border-radius: 8px !important;
-            font-size: 16px !important;
-            font-weight: 500 !important;
-            margin: 10px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-            transition: all 0.3s ease !important;
-            min-width: 120px !important;
-          }
-
-          /* Textarea */
-          textarea.txtnewbigddl {
-            min-height: 80px !important;
-            resize: vertical !important;
-          }
-
-          /* Table layout */
-          table {
-            width: 100% !important;
-            border-spacing: 0 8px !important;
-          }
-
-          td {
-            padding: 8px !important;
-            vertical-align: top !important;
-          }
-
-          /* Responsive adjustments */
-          @media (max-width: 768px) {
-            .x_content {
-              padding: 15px !important;
-            }
-            
-            td {
-              display: block !important;
-              width: 100% !important;
-            }
-          }
-        \`;
-        document.head.appendChild(attendanceFormStyles);
-
         // Add mobile form styles
         const mobileFormStyles = document.createElement('style');
         mobileFormStyles.textContent = \`
@@ -1926,175 +1290,133 @@ export default function App() {
   `;
 
   const injectedJavaScriptForForms = `
-    (function() {
-      const style = document.createElement('style');
-      style.textContent = \`
-        /* Form Container */
-        .x_content {
-          padding: 20px !important;
-          background: #fff !important;
-          border-radius: 16px !important;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important;
-          margin: 16px !important;
+  (function() {
+    const style = document.createElement('style');
+    style.textContent = \`
+      /* Hide nav menu and footer */
+      .nav_menu, .footer {
+        display: none !important;
+      }
+
+      .right_col {
+        margin: 0 !important;
+        background: #f0f2f5 !important;
+      }
+
+      /* Main Panel */
+      .x_panel {
+        background: white !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+        margin: 15px auto !important;
+        padding: 15px !important;
+        max-width: 800px !important;
+      }
+
+      /* Title Section */
+      .x_title {
+        border-bottom: 1px solid #eee !important;
+        padding-bottom: 10px !important;
+        margin-bottom: 15px !important;
+      }
+
+      .x_title h2 {
+        color: #333 !important;
+        font-size: 18px !important;
+        margin: 0 !important;
+      }
+
+      /* Form Fields */
+      .txtnewbig, .txtnewbigddl {
+        width: 100% !important;
+        padding: 8px 12px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+        margin: 4px 0 !important;
+        background: white !important;
+        box-shadow: none !important;
+        height: auto !important;
+      }
+
+      .txtnewbigddl {
+        height: 38px !important;
+        background: white !important;
+      }
+
+      textarea.txtnewbigddl {
+        min-height: 60px !important;
+        resize: vertical !important;
+      }
+
+      /* Buttons */
+      .bebutton {
+        background: linear-gradient(135deg, #ea580c, #fb923c) !important;
+        color: white !important;
+        padding: 10px 20px !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-size: 16px !important;
+        font-weight: 500 !important;
+        margin: 5px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        min-width: 120px !important;
+      }
+
+      .bebutton:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+      }
+
+      /* Table Layout */
+      table {
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 8px !important;
+      }
+
+      td {
+        padding: 8px !important;
+        vertical-align: middle !important;
+      }
+
+      /* Labels */
+      span[id*="Label"] {
+        color: #444 !important;
+        font-weight: 500 !important;
+        display: inline-block !important;
+        margin-bottom: 4px !important;
+      }
+
+      /* Form Container */
+      .form-container {
+        max-width: 1000px !important;
+        margin: 0 auto !important;
+        padding: 20px !important;
+      }
+
+      /* Mobile Responsiveness */
+      @media (max-width: 768px) {
+        table {
+          display: block !important;
         }
-
-        /* Hide nav menu and footer */
-        .nav_menu, .footer {
-          display: none !important;
+        
+        tr {
+          margin-bottom: 15px !important;
+          display: block !important;
         }
-
-        .right_col {
-          background: #f0f2f5 !important;
-          margin: 0 !important;
-        }
-
-        /* Fix endless scrolling */
-        #main_container {
-          height: 100vh !important;
-          overflow: hidden !important;
-        }
-
-        .container.body {
-          height: 100vh !important;
-          overflow: auto !important;
-        }
-
-        /* Form Layout */
-        form {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 16px !important;
-        }
-
-        .form-group {
-          display: flex !important;
-          flex-direction: column !important;
-          margin-bottom: 8px !important;
-        }
-
-        /* Labels with Icons */
-        label, span[id*="Label"], span[id*="lbl"] {
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          margin-bottom: 10px !important;
-          font-weight: 500 !important;
-          color: #374151 !important;
-          font-size: 15px !important;
-        }
-
-        label::before, span[id*="Label"]::before, span[id*="lbl"]::before {
-          font-size: 18px !important;
-        }
-
-        /* Form Fields - Increased Height */
-        .txtnewbig, .txtnewbigddl, select, input[type="date"], input[type="time"] {
-          width: 100% !important;
-          height: 50px !important;
-          padding: 0 16px !important;
-          border: 1px solid #e2e8f0 !important;
-          border-radius: 12px !important;
-          font-size: 16px !important;
-          background: #f8fafc !important;
-          margin-bottom: 16px !important;
-          transition: all 0.2s ease !important;
-        }
-
-        /* Focus states */
-        .txtnewbig:focus, .txtnewbigddl:focus, select:focus, input[type="date"]:focus, input[type="time"]:focus {
-          border-color: #ea580c !important;
-          box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1) !important;
-          outline: none !important;
-        }
-
-        /* Select Dropdowns */
-        select {
-          appearance: none !important;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
-          background-repeat: no-repeat !important;
-          background-position: right 16px center !important;
-          background-size: 18px !important;
-          padding-right: 48px !important;
-        }
-
-        /* Employee Info Section */
-        .employee-info {
-          background: #f8fafc !important;
-          padding: 20px !important;
-          border-radius: 12px !important;
-          margin-bottom: 24px !important;
-        }
-
-        /* Buttons Container */
-        .button-container {
-          display: flex !important;
-          gap: 16px !important;
-          margin-top: 24px !important;
-          justify-content: space-between !important;
-        }
-
-        /* Submit and Clear buttons */
-        .bebutton {
-          flex: 1 !important;
-          height: 54px !important;
-          background: linear-gradient(135deg, #ea580c, #fb923c) !important;
-          color: white !important;
-          padding: 0 20px !important;
-          border: none !important;
-          border-radius: 12px !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          box-shadow: 0 2px 4px rgba(234, 88, 12, 0.2) !important;
-          transition: all 0.2s ease !important;
-          text-align: center !important;
-        }
-
-        .bebutton:hover {
-          transform: translateY(-1px) !important;
-          box-shadow: 0 4px 6px rgba(234, 88, 12, 0.25) !important;
-        }
-
-        /* Icons for specific fields */
-        #ctl00_ContentPlaceHolder1_Label11::before { content: "👤" !important; }
-        #ctl00_ContentPlaceHolder1_Label10::before { content: "🆔" !important; }
-        #ctl00_ContentPlaceHolder1_Label1::before { content: "🔄" !important; }
-        #ctl00_ContentPlaceHolder1_Label2::before { content: "📋" !important; }
-        #ctl00_ContentPlaceHolder1_blrec0::before { content: "👥" !important; }
-        #ctl00_ContentPlaceHolder1_lblFromDate::before { content: "📅" !important; }
-        #ctl00_ContentPlaceHolder1_lblToDate::before { content: "📅" !important; }
-        #ctl00_ContentPlaceHolder1_lblInTime::before { content: "⏰" !important; }
-        #ctl00_ContentPlaceHolder1_lblOutTime::before { content: "⏰" !important; }
-
-        /* Textarea */
-        textarea.txtnewbigddl {
-          height: 120px !important;
-          padding: 16px !important;
-          resize: vertical !important;
-        }
-
-        /* Table to Flex conversion */
-        table, tbody, tr, td {
+        
+        td {
           display: block !important;
           width: 100% !important;
+          text-align: left !important;
         }
-
-        tr {
-          margin-bottom: 20px !important;
-        }
-
-        /* Form Title */
-        .x_title h2 {
-          font-size: 22px !important;
-          color: #1e293b !important;
-          font-weight: 600 !important;
-          margin-bottom: 28px !important;
-          text-align: center !important;
-        }
-      \`;
-      document.head.appendChild(style);
-    })();
-    true;
-  `;
+      }
+    \`;
+    document.head.appendChild(style);
+  })();
+  true;
+`;
 
   const injectedJavaScriptForReports = `
     (function() {
@@ -2170,8 +1492,9 @@ export default function App() {
     setReportUrl(url);
     setIsReportVisible(true);
   };
-
+  
   return (
+
     <SafeAreaProvider>
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
@@ -2342,7 +1665,7 @@ export default function App() {
                 />
               </View>
             )}
-          </View>
+          </View> 
         )}
       </SafeAreaView>
     </SafeAreaProvider>
